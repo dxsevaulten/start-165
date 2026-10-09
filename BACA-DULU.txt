@@ -1,0 +1,43 @@
+========================================
+  165 START — BACA DULU (30 detik)
+========================================
+
+CARA MAIN:
+  Klik dua kali "165START.exe"
+  → game terbuka di jendelanya sendiri.
+
+  ✅ EXE INI SUDAH MANDIRI — file game sudah
+  tertanam di dalamnya. Boleh dipindah ke mana
+  pun, bahkan dieksekusi sendirian, pasti jalan.
+
+  Tidak perlu install apa pun. Tidak perlu internet.
+
+TOMBOL:
+  W A S D ....... jalan / terbang
+  Mouse ......... lihat sekeliling
+  Spasi / C ..... naik / turun
+  Shift ......... lari
+  Tab ........... buka/tutup panel parameter
+  1 - 5 ......... ganti dimensi (1D sampai 5D)
+  R ............. kembali ke posisi awal
+
+PANEL KIRI:
+  115 bentuk matematika bisa kamu ubah
+  parameternya: rumus, ukuran, frekuensi,
+  iterasi fraktal, dan lainnya.
+
+CATATAN:
+  * Kalau file index.html & three.min.js ada di
+    sebelah exe, file ITU yang dipakai
+    (jadi hasil edit-mu ikut jalan).
+    Kalau tidak ada, exe memakai salinan
+    bawaan di dalamnya.
+  * Kalau Windows memberi peringatan
+    "Windows protected your PC":
+    klik "More info" → "Run anyway".
+    (Aplikasi baru memang sering ditandai begitu.)
+  * Game butuh browser (Edge/Chrome) untuk
+    menampilkan grafis 3D. Windows 10/11 sudah
+    punya Edge sejak awal.
+
+Selamat bermain. Matematika itu nyata. :-)
