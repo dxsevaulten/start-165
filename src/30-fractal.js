@@ -109,9 +109,12 @@ const PALETS = {
 };
 function warnaPalet(nama, t){
   const stops = PALETS[nama] || PALETS.aero;
+  if(typeof t !== "number" || !isFinite(t)) t = 0;
   t = ((t % 1) + 1) % 1;
   const f = t*stops.length;
-  const i0 = Math.floor(f) % stops.length, i1 = (i0+1) % stops.length;
+  let i0 = Math.floor(f) % stops.length, i1 = (i0+1) % stops.length;
+  if(!stops[i0]) i0 = 0;
+  if(!stops[i1]) i1 = 0;
   const k = f - Math.floor(f);
   const a = stops[i0], b = stops[i1];
   return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
@@ -422,11 +425,20 @@ function renderBaris(y0, y1){
       const dci = nx*sin + ny*cos;
 
       const n = pikselIterasi(orb, maxN, dcr, dci, holomorfik, isJulia);
-      let t;
-      if(n >= (orb.lepas>=0 ? orb.lepas : maxN)){
-        t = 0; // dalam set → gelap
-      } else {
-        t = F.halus ? (n + 1 - Math.log(Math.log(Math.sqrt(Math.pow(orb.ZR[Math.min(n,orb.ZR.length-1)]+dcr,2)+Math.pow(orb.ZI[Math.min(n,orb.ZI.length-1)]+dci,2)))/Math.log(F.kuasa)))/Math.max(24, maxN*0.28) : n/Math.max(24, maxN*0.28);
+      const nAkhir = orb.lepas>=0 ? orb.lepas : maxN;
+      let t = 0;
+      if(n < nAkhir){
+        if(F.halus){
+          const ix = Math.min(n, orb.ZR.length-1);
+          const zr2 = orb.ZR[ix] + dcr, zi2 = orb.ZI[ix] + dci;
+          const mag = Math.sqrt(zr2*zr2 + zi2*zi2);
+          const l1 = Math.log(Math.max(1.0000001, mag));
+          const l2 = Math.log(Math.max(1.0000001, l1*2));
+          t = (n + 1 - l2/Math.log(Math.max(2, F.kuasa))) / Math.max(24, maxN*0.28);
+        } else {
+          t = n/Math.max(24, maxN*0.28);
+        }
+        if(!isFinite(t) || t < 0) t = 0.0001;
       }
       let r, g, b;
       if(t <= 0){ r=3; g=7; b=17; }
@@ -534,9 +546,12 @@ function kenyataanReanchor(){
 
 // papan kekunci mod fraktal
 window.addEventListener("keydown", function(e){
-  if(!buka) return;
   if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
-  if(e.code === "KeyF"){ tutupFraktal(); }
+  if(e.code === "KeyF"){
+    if(buka) tutupFraktal(); else bukaFraktal();
+    return;
+  }
+  if(!buka) return;
   if(e.code === "KeyA"){ autoZoom = !autoZoom; }
 });
 

@@ -118,10 +118,6 @@ function toggleBantuan(){
 }
 window.addEventListener("keydown", function(e){
   if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
-  if(e.code === "KeyF" && G.fractal && !G.fractal.getTerbuka()){
-    G.fractal.buka();
-    return;
-  }
   if(e.code === "KeyH" && !(G.fractal && G.fractal.getTerbuka())){
     toggleBantuan();
   }

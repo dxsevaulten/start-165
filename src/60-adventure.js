@@ -128,8 +128,7 @@ const MISI = [
      jawapan:1,
      penjelasan:"Kubus 3D = 8 bucu. Setiap +1 dimensi menggandakan bucu: 2ⁿ. Tesseract (4D) = 2⁴ = 16 bucu!"}}
 ];
-
-// ============================ UI PANEL ===================================
+G.missions.daftar = MISI;   // misi terbina-dalam (Mudah → Pakar)
 const PNL = G.panel;
 PNL.group("🗺️ PENGEMBARAN MATEMATIKA (semua umur)");
 
