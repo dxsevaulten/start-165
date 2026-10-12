@@ -13,8 +13,10 @@ Semua yang kau nampak lahir dari persamaan — dan setiap persamaan boleh kau se
 
 | Cara | Langkah |
 |---|---|
-| **Windows** | Klik dua kali `165START.exe` → main. (Portable — tanpa install, tanpa internet.) |
+| **Windows (paling senang)** | Muat turun `rilis/165START-win64-v0.7.zip` → klik kanan → **Extract All** → klik dua kali **`165START.exe`**. (Portable — tanpa install, tanpa internet.) |
 | **Semua OS** | Klik dua kali `index.html` → terbuka di Chrome/Edge/Firefox. |
+
+⚠️ **Penting:** kalau kau buka `165START.exe` dari muat turun LAMA, kau akan nampak game versi lama (exe lama ada salinan game lama tertanam). Sentiasa guna muat turun terkini dari repo ini — `165START.exe` sekarang dah tertanam game **v0.7**.
 
 Itu sahaja. Fail game hanya **satu fail tunggal** (`index.html`, ± 180 KB) + enjin 3D (`three.min.js`, ± 590 KB). Muat turun, ekstrak, main. Sesuai untuk semua umur — ada teks penuh di setiap bahagian.
 
@@ -48,7 +50,9 @@ Dalam mod fraktal: **tatal tetikus** = zoom ke kursor, **seret** = gerak, **klik
 ```
 index.html              → SELURUH game dalam satu fail (double-klik = main!)
 three.min.js            → enjin 3D (ringan, luar talian)
-165START.exe            → pemutar Windows portable (fail game tertanam di dalamnya)
+165START.exe            → pemutar Windows portable (game v0.7 TERTANAM di dalamnya)
+rilis/
+  └─ 165START-win64-v0.7.zip → pakej Windows lengkap (exe + game + panduan)
 preview.png             → tangkapan skrin
 README.md               → fail ini
 BACA-DULU.txt           → panduan 30 saat
@@ -57,6 +61,7 @@ src/                    → kod modular (untuk yang nak ubah suai)
   head.html · 10-core.js · 20-world.js · 30-fractal.js
   40-assetgen.js · 50-ugc.js · 60-adventure.js · 90-boot.js
 build.py                → python3 build.py  → himpun src/ jadi index.html
+src-exe/ + build-exe.py → python3 build-exe.py → bina semula 165START.exe + zip rilis
 ```
 
 ## 🔧 Untuk yang suka ngoprek
