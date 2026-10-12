@@ -103,7 +103,9 @@ window.onerror = function(msg, src, line){
 </div>
 
 <script src="three.min.js"></script>
+
 <script>
+/* ==== 10-core.js ==== */
 /* ============================================================================
    165 START — Sandbox Matematika (1D → 5D)
    ----------------------------------------------------------------------------
@@ -1211,6 +1213,7 @@ const player = {
 };
 const keys = {};
 window.addEventListener("keydown", function(e){
+  if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
   keys[e.code]=true;
   if(e.code==="Tab"){ e.preventDefault(); document.getElementById("panel").classList.toggle("hidden"); }
   if(e.code==="KeyR"){ player.pos.set(0,6,26); player.yaw=Math.PI; player.pitch=-0.12; }
@@ -1238,6 +1241,7 @@ window.addEventListener("mousemove", function(e){
 });
 
 function updatePlayer(dt){
+  if(player.frozen) return;   // mod fraktal / menu: pemain dibekukan
   const sp = player.speed*(keys["ShiftLeft"]||keys["ShiftRight"] ? player.lari : 1)*dt;
   const fwd = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
@@ -1247,7 +1251,8 @@ function updatePlayer(dt){
   if(keys["KeyA"]) player.pos.addScaledVector(right, -sp);
   if(keys["Space"]) player.pos.y += sp;
   if(keys["KeyC"]||keys["ControlLeft"]) player.pos.y -= sp;
-  if(player.pos.y < 1.6) player.pos.y = 1.6;
+  const gh = (window.GAME && window.GAME.groundHeight) ? window.GAME.groundHeight(player.pos.x, player.pos.z) : 0;
+  if(player.pos.y < gh+1.6) player.pos.y = gh+1.6;
 
   camera.position.copy(player.pos);
   camera.rotation.set(0,0,0);
@@ -1316,53 +1321,68 @@ const UI = [
 ];
 
 const sliders = [];
-UI.forEach(function(item){
-  if(item.grp){
-    const g=document.createElement("div"); g.className="grp"; g.textContent=item.grp;
-    panelBody.appendChild(g); return;
-  }
-  if(item.t==="slider"){
-    const row=document.createElement("div"); row.className="row";
-    const lab=document.createElement("label");
-    const val=document.createElement("b");
-    lab.innerHTML = "<span>"+item.label+"</span>";
-    lab.appendChild(val);
-    const inp=document.createElement("input");
-    inp.type="range"; inp.min=item.min; inp.max=item.max; inp.step=item.step;
-    inp.value = item.obj[item.key];
+function panelGroup(title){
+  const g=document.createElement("div"); g.className="grp"; g.textContent=title;
+  panelBody.appendChild(g); return g;
+}
+function mkSlider(item){
+  const row=document.createElement("div"); row.className="row";
+  const lab=document.createElement("label");
+  const val=document.createElement("b");
+  lab.innerHTML = "<span>"+item.label+"</span>";
+  lab.appendChild(val);
+  const inp=document.createElement("input");
+  inp.type="range"; inp.min=item.min; inp.max=item.max; inp.step=item.step;
+  inp.value = item.obj[item.key];
+  val.textContent = inp.value;
+  inp.addEventListener("input", function(){
+    const v = parseFloat(inp.value);
+    item.obj[item.key] = v;
     val.textContent = inp.value;
-    inp.addEventListener("input", function(){
-      const v = parseFloat(inp.value);
-      item.obj[item.key] = v;
-      val.textContent = inp.value;
-      if(item.onChange) item.onChange(v);
-    });
-    row.appendChild(lab); row.appendChild(inp); panelBody.appendChild(row);
-    sliders.push({item:item, inp:inp, val:val});
-  } else if(item.t==="select"){
-    const row=document.createElement("div"); row.className="row";
-    const lab=document.createElement("label"); lab.innerHTML="<span>"+item.label+"</span>";
-    const sel=document.createElement("select");
-    item.options.forEach(function(o){
-      const op=document.createElement("option"); op.value=o[0]; op.textContent=o[1];
-      sel.appendChild(op);
-    });
-    sel.addEventListener("change", function(){ item.onChange(sel.value); });
-    row.appendChild(lab); row.appendChild(sel); panelBody.appendChild(row);
-  } else if(item.t==="check"){
-    const row=document.createElement("div"); row.className="row chk";
-    const inp=document.createElement("input");
-    inp.type="checkbox"; inp.checked=!!item.obj[item.key];
-    inp.addEventListener("change", function(){ item.obj[item.key]=inp.checked; item.onChange(inp.checked); });
-    row.appendChild(inp);
-    const sp=document.createElement("span"); sp.textContent=item.label;
-    row.appendChild(sp); panelBody.appendChild(row);
-  } else if(item.t==="button"){
-    const row=document.createElement("div"); row.className="row";
-    const b=document.createElement("button"); b.className="mini"; b.textContent=item.label;
-    b.addEventListener("click", item.onClick);
-    row.appendChild(b); panelBody.appendChild(row);
-  }
+    if(item.onChange) item.onChange(v);
+  });
+  row.appendChild(lab); row.appendChild(inp); panelBody.appendChild(row);
+  sliders.push({item:item, inp:inp, val:val});
+  return row;
+}
+function mkSelect(item){
+  const row=document.createElement("div"); row.className="row";
+  const lab=document.createElement("label"); lab.innerHTML="<span>"+item.label+"</span>";
+  const sel=document.createElement("select");
+  item.options.forEach(function(o){
+    const op=document.createElement("option"); op.value=o[0]; op.textContent=o[1];
+    sel.appendChild(op);
+  });
+  sel.addEventListener("change", function(){
+    if(item.obj && item.key) item.obj[item.key] = sel.value;
+    item.onChange(sel.value);
+  });
+  row.appendChild(lab); row.appendChild(sel); panelBody.appendChild(row);
+  return row;
+}
+function mkCheck(item){
+  const row=document.createElement("div"); row.className="row chk";
+  const inp=document.createElement("input");
+  inp.type="checkbox"; inp.checked=!!item.obj[item.key];
+  inp.addEventListener("change", function(){ item.obj[item.key]=inp.checked; item.onChange(inp.checked); });
+  row.appendChild(inp);
+  const sp=document.createElement("span"); sp.textContent=item.label;
+  row.appendChild(sp); panelBody.appendChild(row);
+  return row;
+}
+function mkButton(item){
+  const row=document.createElement("div"); row.className="row";
+  const b=document.createElement("button"); b.className="mini"; b.textContent=item.label;
+  b.addEventListener("click", item.onClick);
+  row.appendChild(b); panelBody.appendChild(row);
+  return row;
+}
+UI.forEach(function(item){
+  if(item.grp){ panelGroup(item.grp); return; }
+  if(item.t==="slider") mkSlider(item);
+  else if(item.t==="select") mkSelect(item);
+  else if(item.t==="check") mkCheck(item);
+  else if(item.t==="button") mkButton(item);
 });
 function syncPanel(){
   sliders.forEach(function(s){
@@ -1398,6 +1418,12 @@ function animate(){
   menger.rotation.y += dt*0.16;
   menger.rotation.x = Math.sin(t*0.12)*0.12;
 
+  // kaitan modul (dunia, fraktal, bina, misi) — dipanggil setiap frame
+  if(window.GAME && window.GAME.updates){
+    const ups = window.GAME.updates;
+    for(let i=0;i<ups.length;i++) ups[i](dt, t);
+  }
+
   renderer.render(scene, camera);
 
   // HUD statistik
@@ -1416,7 +1442,2562 @@ window.addEventListener("resize", function(){
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ================== ANTARAMUKA UNTUK MODUL (API dalaman) ===================
+window.GAME = {
+  THREE: THREE, renderer: renderer, scene: scene, camera: camera,
+  sun: sun, fill: fill, ground: ground, skyMat: skyMat, gridTex: gridTex,
+  player: player, keys: keys, surface: surface, surfaceMat: surfaceMat,
+  PARAM: PARAM, ND: ND, MENG: MENG, MATEMATIKA: MATEMATIKA,
+  getBentuk: function(){ return bentukAktif; },
+  setBentuk: function(k){ bentukAktif=k; bangunPermukaan(); },
+  bangunPermukaan: bangunPermukaan, bangunND: bangunND, bangunMenger: bangunMenger,
+  panel: { group: panelGroup, slider: mkSlider, select: mkSelect, check: mkCheck, button: mkButton, sync: syncPanel, body: panelBody },
+  updates: [],                 // fn(dt,t) dipanggil setiap frame
+  hooks: {},                   // tempat modul daftar fungsi (mis. groundHeight)
+  groundHeight: null,          // dipasang oleh modul dunia (20-world.js)
+  TILE: TILE, bubbles: bubbles, menger: menger
+};
+
 })();
+
+</script>
+
+<script>
+/* ==== 20-world.js ==== */
+/* ============================================================================
+   20-world.js — DUNIA DREAMCORE TANPA BATAS
+   ----------------------------------------------------------------------------
+   Rumput hijau, bukit, rumah, pokok, bunga, kolam, awan — dijana prosedur
+   mengelilingi pemain selama-lamanya. Jauh dari titik mula, dunia mula
+   "terdistorsi" (zona tepi) dan selepas itu jadi ZON KOSMIK (retro gelap +
+   bintang + formula melayang). Semuanya matematik: bunyi nilai (value noise),
+   hash deterministik, tiada fail tekstur besar.
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME, THREE = G.THREE, scene = G.scene;
+
+// ============================ PARAM DUNIA (PARAM) ==========================
+const W = {
+  seed: 165,          // benih dunia — tukar = dunia baru sepenuhnya
+  bukit: 1.0,         // ketinggian bukit (amplitudo rupa bumi)
+  kepadatan: 1.0,     // kepadatan hiasan (rumah, pokok, bunga)
+  batas: 900,         // jarak dari titik mula sebelum dunia mula terdistorsi
+  jarakRender: 420,   // jarak render rupa bumi
+  waktu: 0.85,        // 0 = malam · 0.5 = senja · 1 = siang penuh
+  autoSiang: false,   // kitaran siang-malam automatik
+  awan: true, hiasan: true, bunga: true, cosmic: true, kolam: true
+};
+
+// ============================ BUNYI NILAI (value noise) ====================
+function h2(x, z){
+  const s = Math.sin(x*127.1 + z*311.7 + W.seed*13.37)*43758.5453;
+  return s - Math.floor(s);
+}
+function vnoise(x, z){
+  const xi=Math.floor(x), zi=Math.floor(z), xf=x-xi, zf=z-zi;
+  const u=xf*xf*(3-2*xf), v=zf*zf*(3-2*zf);
+  const a=h2(xi,zi), b=h2(xi+1,zi), c=h2(xi,zi+1), d=h2(xi+1,zi+1);
+  return a*(1-u)*(1-v)+b*u*(1-v)+c*(1-u)*v+d*u*v;
+}
+function fbm(x, z){
+  let h=0, amp=1, f=1, tot=0;
+  for(let i=0;i<4;i++){ h+=vnoise(x*f, z*f)*amp; tot+=amp; amp*=0.5; f*=2.1; }
+  return h/tot;
+}
+/* ketinggian rupa bumi — SAMA digunakan untuk mesh, pemain & hiasan */
+function worldHeight(x, z){
+  let h = (fbm(x*0.008+100, z*0.008+100)-0.42)*14*W.bukit;
+  // --- zon tepi: dunia mula berpusing/terdistorsi bila jauh dari pusat ---
+  const d = Math.sqrt(x*x+z*z);
+  const over = Math.max(0, d - W.batas);
+  if(over > 0){
+    const w = over*0.004;
+    h += Math.sin(x*0.021 + w*8)*over*0.035 + Math.cos(z*0.018 - w*6)*over*0.03;
+    h += Math.sin((x+z)*0.006 + w*20)*over*0.05;   // gelombang besar aneh
+  }
+  return h;
+}
+G.groundHeight = worldHeight;
+G.dunia = W;   // dedahkan parameter dunia untuk misi & modul lain
+
+// ============================ TEKSTUR KANVAS RINGAN ========================
+function grassTexture(){
+  const c=document.createElement("canvas"); c.width=c.height=256;
+  const g=c.getContext("2d");
+  g.fillStyle="#4fae4c"; g.fillRect(0,0,256,256);
+  // lorek rumput + bintik warna (dreamcore berwarna-warni)
+  for(let i=0;i<2200;i++){
+    const x=Math.random()*256, y=Math.random()*256;
+    const t=Math.random();
+    g.fillStyle = t<0.72 ? "rgba(30,110,40,0.5)" : (t<0.92 ? "rgba(150,230,120,0.5)" : "rgba(255,255,190,0.55)");
+    g.fillRect(x, y, 1.6, 1.6);
+  }
+  for(let i=0;i<26;i++){ // bunga liar kecil dalam tekstur
+    const x=Math.random()*256, y=Math.random()*256;
+    g.fillStyle=["#ff8fd0","#ffe27a","#9fd8ff","#fff"][i%4];
+    g.beginPath(); g.arc(x,y,1.8,0,Math.PI*2); g.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+function cloudTexture(){
+  const c=document.createElement("canvas"); c.width=c.height=128;
+  const g=c.getContext("2d");
+  for(let i=0;i<9;i++){
+    const x=28+Math.random()*72, y=52+Math.random()*32, r=18+Math.random()*22;
+    const gr=g.createRadialGradient(x,y,0,x,y,r);
+    gr.addColorStop(0,"rgba(255,255,255,0.95)"); gr.addColorStop(1,"rgba(255,255,255,0)");
+    g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+function waterTexture(){
+  const c=document.createElement("canvas"); c.width=c.height=128;
+  const g=c.getContext("2d");
+  const gr=g.createLinearGradient(0,0,128,128);
+  gr.addColorStop(0,"#37b6e8"); gr.addColorStop(0.5,"#7fe3ff"); gr.addColorStop(1,"#2a86c8");
+  g.fillStyle=gr; g.fillRect(0,0,128,128);
+  for(let i=0;i<40;i++){
+    g.strokeStyle="rgba(255,255,255,0.35)"; g.lineWidth=1.5;
+    const y=Math.random()*128;
+    g.beginPath(); g.moveTo(0,y);
+    for(let x=0;x<=128;x+=8) g.lineTo(x, y+Math.sin(x*0.2+i)*3);
+    g.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+function gridDarkTexture(){
+  const c=document.createElement("canvas"); c.width=c.height=256;
+  const g=c.getContext("2d");
+  g.fillStyle="#0b0b22"; g.fillRect(0,0,256,256);
+  g.strokeStyle="rgba(150,120,255,0.6)"; g.lineWidth=2;
+  for(let i=0;i<=4;i++){ const p=i*64;
+    g.beginPath(); g.moveTo(p,0); g.lineTo(p,256); g.moveTo(0,p); g.lineTo(256,p); g.stroke(); }
+  return new THREE.CanvasTexture(c);
+}
+const grassTex = grassTexture();
+grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; grassTex.repeat.set(6,6);
+const cloudTex = cloudTexture();
+const waterTex = waterTexture();
+waterTex.wrapS = waterTex.wrapT = THREE.RepeatWrapping;
+
+// bahan dikongsi
+const trunkMat  = new THREE.MeshStandardMaterial({color:0x8a5a33, roughness:0.85});
+const leafMat   = new THREE.MeshStandardMaterial({color:0x3fae5c, roughness:0.7});
+const leafMat2  = new THREE.MeshStandardMaterial({color:0x63c86a, roughness:0.7});
+const roofMat   = new THREE.MeshStandardMaterial({color:0xd94f4f, roughness:0.6});
+const wallMats  = [0xffe9c9,0xffd6e8,0xd6ecff,0xe8ffd6,0xfff3b8,0xe6d6ff].map(function(c){
+  return new THREE.MeshStandardMaterial({color:c, roughness:0.55, metalness:0.08});
+});
+const winMat    = new THREE.MeshStandardMaterial({color:0x9fe8ff, roughness:0.12, metalness:0.75, emissive:0x225577});
+const rockMat   = new THREE.MeshStandardMaterial({color:0x9aa4b2, roughness:0.9});
+const waterMat  = new THREE.MeshStandardMaterial({map:waterTex, transparent:true, opacity:0.82,
+                     roughness:0.12, metalness:0.55, color:0x8fe8ff});
+const flowerCols= [0xff5fa2,0xffe14d,0x8f6bff,0xff8c42,0x4dffb0,0xff4d6a];
+
+// geometri dikongsi (penjimatan memori besar)
+const GEO = {
+  box: new THREE.BoxGeometry(1,1,1),
+  trunk: new THREE.CylinderGeometry(0.22,0.32,1,7),
+  leafBall: new THREE.SphereGeometry(1,10,8),
+  leafCone: new THREE.ConeGeometry(1,1,9),
+  roof: new THREE.ConeGeometry(1,1,4),
+  sphere: new THREE.SphereGeometry(1,10,8),
+  cyl: new THREE.CylinderGeometry(1,1,1,12),
+  flower: new THREE.SphereGeometry(0.16,6,5),
+  stem: new THREE.CylinderGeometry(0.03,0.03,1,4),
+  rock: new THREE.DodecahedronGeometry(1,0)
+};
+
+// ============================ WARNA BENUA (kawasan berwarna-warni) =========
+const benua = [
+  new THREE.Color(0x4fae4c), new THREE.Color(0x63c86a), new THREE.Color(0x3fae7c),
+  new THREE.Color(0x7cc242), new THREE.Color(0x2e9e6e), new THREE.Color(0x8fc93d)
+];
+function warnaBenua(x, z){
+  const ix=Math.floor(x/420), iz=Math.floor(z/420);
+  return benua[Math.floor(h2(ix*3.1, iz*7.7)*benua.length) % benua.length];
+}
+
+// ============================ CHUNK RUPA BUMI TANPA HENTI =================
+const CHUNK = 60, SEGS = 10;
+const chunks = new Map();
+function chunkKey(cx,cz){ return cx+","+cz; }
+function makeChunk(cx, cz){
+  const geo = new THREE.PlaneGeometry(CHUNK, CHUNK, SEGS, SEGS);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+  const cols = new Float32Array(pos.count*3);
+  const base = warnaBenua(cx*CHUNK, cz*CHUNK);
+  const tmp = new THREE.Color();
+  for(let i=0;i<pos.count;i++){
+    const x = pos.getX(i) + cx*CHUNK, z = pos.getZ(i) + cz*CHUNK;
+    pos.setY(i, worldHeight(x, z));
+    const n = 0.82 + 0.36*vnoise(x*0.05, z*0.05);   // variasi warna halus
+    tmp.copy(base).multiplyScalar(n);
+    cols[i*3]=tmp.r; cols[i*3+1]=tmp.g; cols[i*3+2]=tmp.b;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(cols,3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    map:grassTex, vertexColors:true, roughness:0.92, metalness:0.02
+  }));
+  mesh.position.set(cx*CHUNK, 0, cz*CHUNK);
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// ============================ HIASAN (sel = petak hiasan) ==================
+const SEL = 90;
+const cells = new Map();
+function makeTree(rnd){
+  const g = new THREE.Group();
+  const th = 2.2 + rnd()*2.2;
+  const trunk = new THREE.Mesh(GEO.trunk, trunkMat);
+  trunk.scale.set(1, th, 1); trunk.position.y = th/2;
+  g.add(trunk);
+  const jenis = Math.floor(rnd()*3);
+  if(jenis === 0){            // pokok bulat (dreamcore)
+    for(let i=0;i<3;i++){
+      const b = new THREE.Mesh(GEO.leafBall, i%2 ? leafMat : leafMat2);
+      const s = 1.4 + rnd()*1.2;
+      b.scale.setScalar(s);
+      b.position.set((rnd()-0.5)*1.6, th + 0.6 + i*0.9, (rnd()-0.5)*1.6);
+      g.add(b);
+    }
+  } else if(jenis === 1){     // pain / kon
+    for(let i=0;i<3;i++){
+      const c = new THREE.Mesh(GEO.leafCone, leafMat);
+      const s = 1.9 - i*0.45;
+      c.scale.set(s, 1.6, s); c.position.y = th*0.75 + i*1.15;
+      g.add(c);
+    }
+  } else {                    // pokok buah
+    const b = new THREE.Mesh(GEO.leafBall, leafMat2);
+    b.scale.setScalar(1.9); b.position.y = th + 0.7;
+    g.add(b);
+    for(let i=0;i<4;i++){
+      const f = new THREE.Mesh(GEO.sphere, new THREE.MeshStandardMaterial({color:0xff6b57, roughness:0.5}));
+      f.scale.setScalar(0.28);
+      const a = rnd()*Math.PI*2;
+      f.position.set(Math.cos(a)*1.4, th+0.2+rnd()*1.3, Math.sin(a)*1.4);
+      g.add(f);
+    }
+  }
+  return g;
+}
+function makeHouse(rnd){
+  const g = new THREE.Group();
+  const w = 5+rnd()*4, h = 3.4+rnd()*2.2, d = 5+rnd()*3.5;
+  const wall = new THREE.Mesh(GEO.box, wallMats[Math.floor(rnd()*wallMats.length)]);
+  wall.scale.set(w,h,d); wall.position.y = h/2;
+  wall.castShadow = true;
+  g.add(wall);
+  const roof = new THREE.Mesh(GEO.roof, roofMat);
+  roof.scale.set(w*0.92, h*0.62, w*0.92);
+  roof.rotation.y = Math.PI/4;
+  roof.position.y = h + h*0.31;
+  roof.castShadow = true;
+  g.add(roof);
+  const door = new THREE.Mesh(GEO.box, trunkMat);
+  door.scale.set(1.1, 2.1, 0.18); door.position.set(0, 1.05, d/2+0.08);
+  g.add(door);
+  for(let i=0;i<2;i++){
+    const win = new THREE.Mesh(GEO.box, winMat);
+    win.scale.set(1.15, 1.15, 0.16);
+    win.position.set((i?1:-1)*w*0.27, h*0.58, d/2+0.07);
+    g.add(win);
+  }
+  const chimney = new THREE.Mesh(GEO.box, roofMat);
+  chimney.scale.set(0.8,1.6,0.8); chimney.position.set(w*0.26, h+0.9, -d*0.18);
+  g.add(chimney);
+  g.rotation.y = rnd()*Math.PI*2;
+  return g;
+}
+function makePond(rnd){
+  const g = new THREE.Group();
+  const r = 4.5 + rnd()*5;
+  const w = new THREE.Mesh(new THREE.CircleGeometry(r, 22), waterMat);
+  w.rotation.x = -Math.PI/2;
+  w.position.y = 0.32;
+  g.add(w);
+  for(let i=0;i<9;i++){ // batu tepi kolam
+    const s = new THREE.Mesh(GEO.rock, rockMat);
+    const a = i/9*Math.PI*2;
+    s.scale.setScalar(0.6+rnd()*0.7);
+    s.position.set(Math.cos(a)*r*1.03, 0.3, Math.sin(a)*r*1.03);
+    g.add(s);
+  }
+  return g;
+}
+function makeFlower(rnd){
+  const g = new THREE.Group();
+  const stem = new THREE.Mesh(GEO.stem, leafMat);
+  stem.scale.set(1, 0.55+rnd()*0.5, 1); stem.position.y = 0.32;
+  const head = new THREE.Mesh(GEO.flower, new THREE.MeshStandardMaterial({
+    color: flowerCols[Math.floor(rnd()*flowerCols.length)], roughness:0.55,
+    emissive: 0x221111
+  }));
+  head.position.y = 0.72;
+  g.add(stem, head);
+  return g;
+}
+function makeRock(rnd){
+  const s = new THREE.Mesh(GEO.rock, rockMat);
+  const k = 0.5+rnd()*1.4;
+  s.scale.set(k, k*0.7, k);
+  s.rotation.set(rnd()*3, rnd()*3, rnd()*3);
+  return s;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a>>>15, 1|a);
+    t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+    return ((t ^ t>>>14)>>>0)/4294967296;
+  };
+}
+function makeCell(ix, iz){
+  const g = new THREE.Group();
+  const rnd = mulberry32((ix*73856093) ^ (iz*19349663) ^ (W.seed*83492791));
+  const cx = ix*SEL + SEL/2, cz = iz*SEL + SEL/2;
+  const dens = W.kepadatan;
+  // rumah (kadang-kadang)
+  if(rnd() < 0.28*dens + 0.06){
+    const n = rnd() < 0.25 ? 2 : 1;
+    for(let i=0;i<n;i++){
+      const hx = cx + (rnd()-0.5)*SEL*0.7, hz = cz + (rnd()-0.5)*SEL*0.7;
+      const house = makeHouse(rnd);
+      house.position.set(hx, worldHeight(hx,hz), hz);
+      g.add(house);
+    }
+  }
+  // kolam
+  if(W.kolam && rnd() < 0.16){
+    const px = cx + (rnd()-0.5)*SEL*0.6, pz = cz + (rnd()-0.5)*SEL*0.6;
+    const pond = makePond(rnd);
+    pond.position.set(px, worldHeight(px,pz), pz);
+    g.add(pond);
+  }
+  // pokok
+  const nTree = Math.round((2 + rnd()*3)*dens);
+  for(let i=0;i<nTree;i++){
+    const tx = cx + (rnd()-0.5)*SEL*0.92, tz = cz + (rnd()-0.5)*SEL*0.92;
+    const tree = makeTree(rnd);
+    tree.position.set(tx, worldHeight(tx,tz), tz);
+    g.add(tree);
+  }
+  // bunga & batu
+  if(W.bunga){
+    const nF = Math.round((5 + rnd()*7)*dens);
+    for(let i=0;i<nF;i++){
+      const fx = cx + (rnd()-0.5)*SEL*0.95, fz = cz + (rnd()-0.5)*SEL*0.95;
+      const f = makeFlower(rnd);
+      f.position.set(fx, worldHeight(fx,fz), fz);
+      g.add(f);
+    }
+  }
+  for(let i=0;i<2;i++){
+    const rx = cx + (rnd()-0.5)*SEL*0.9, rz = cz + (rnd()-0.5)*SEL*0.9;
+    const r = makeRock(rnd);
+    r.position.set(rx, worldHeight(rx,rz)+0.2, rz);
+    g.add(r);
+  }
+  return g;
+}
+
+// ============================ AWAN (sprite melayang) =======================
+const awan = [];
+function buatAwan(){
+  for(let i=0;i<26;i++){
+    const m = new THREE.SpriteMaterial({map:cloudTex, transparent:true, opacity:0.85, depthWrite:false});
+    const s = new THREE.Sprite(m);
+    const sc = 26 + Math.random()*52;
+    s.scale.set(sc, sc*0.52, 1);
+    s.position.set((Math.random()-0.5)*1200, 70+Math.random()*160, (Math.random()-0.5)*1200);
+    s.userData = {sp: 2.2+Math.random()*3.4, ph: Math.random()*Math.PI*2};
+    awan.push(s); scene.add(s);
+  }
+}
+buatAwan();
+
+// ============================ BINTANG & FORMULA (zon kosmik) ===============
+const starGeo = new THREE.BufferGeometry();
+{
+  const n = 1600, arr = new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const th=Math.random()*Math.PI*2, ph=Math.acos(Math.random()*2-1), r=2600+Math.random()*900;
+    arr[i*3]=Math.sin(ph)*Math.cos(th)*r; arr[i*3+1]=Math.abs(Math.cos(ph))*r*0.9+30; arr[i*3+2]=Math.sin(ph)*Math.sin(th)*r;
+  }
+  starGeo.setAttribute("position", new THREE.BufferAttribute(arr,3));
+}
+const starMat = new THREE.PointsMaterial({color:0xcdb8ff, size:7, sizeAttenuation:true, transparent:true, opacity:0});
+const bintang = new THREE.Points(starGeo, starMat);
+scene.add(bintang);
+
+function formulaTexture(teks){
+  const c=document.createElement("canvas"); c.width=256; c.height=64;
+  const g=c.getContext("2d");
+  g.fillStyle="rgba(10,8,40,0.65)"; g.fillRect(0,0,256,64);
+  g.font="26px 'Courier New',monospace"; g.fillStyle="#c9b8ff";
+  g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(teks, 128, 32);
+  return new THREE.CanvasTexture(c);
+}
+const rumusMelayang = [];
+["z = z² + c","e^(iπ) + 1 = 0","a² + b² = c²","∇²φ = 0","∑ 1/n² = π²/6",
+ "F = ma","eiθ = cosθ + i·sinθ","λ = h/p","x = (-b±√(b²-4ac))/2a","sin²θ + cos²θ = 1",
+ "ζ(s) = ∑ 1/n^s","det(AB)=detA·detB"].forEach(function(txt, i){
+  const m = new THREE.SpriteMaterial({map:formulaTexture(txt), transparent:true, opacity:0, depthWrite:false});
+  const s = new THREE.Sprite(m);
+  const a = i/12*Math.PI*2;
+  s.position.set(Math.cos(a)*W.batas*1.35, 26+(i%4)*18, Math.sin(a)*W.batas*1.35);
+  s.scale.set(46, 11.5, 1);
+  s.userData = {ph: i*0.7};
+  rumusMelayang.push(s); scene.add(s);
+});
+
+// ============================ ZON: biasa → tepi → kosmik ==================
+const PAL = {
+  siang:  {top:new THREE.Color(0x1a5fc8), mid:new THREE.Color(0x9fd8ff), bot:new THREE.Color(0xeaf9ff), fog:new THREE.Color(0xbfe6ff)},
+  senja:  {top:new THREE.Color(0x2b1a5e), mid:new THREE.Color(0xff8c42), bot:new THREE.Color(0xffd9a0), fog:new THREE.Color(0xe8b48f)},
+  malam:  {top:new THREE.Color(0x040a20), mid:new THREE.Color(0x12244d), bot:new THREE.Color(0x1a3566), fog:new THREE.Color(0x12203f)},
+  kosmik: {top:new THREE.Color(0x07031a), mid:new THREE.Color(0x180b3d), bot:new THREE.Color(0x2a1155), fog:new THREE.Color(0x150a30)}
+};
+const cur = {top:new THREE.Color(), mid:new THREE.Color(), bot:new THREE.Color(), fog:new THREE.Color()};
+let fogBase = scene.fog.far || 2600, fogLastSet = fogBase;
+const zonaText = document.createElement("div");
+zonaText.style.cssText = "position:fixed;top:16px;right:16px;z-index:34;display:none;max-width:290px;"+
+  "background:rgba(20,8,48,.85);border:2px solid #9a7bff;border-radius:6px;padding:10px 12px;"+
+  "font:11px 'Courier New',monospace;color:#cdb8ff;letter-spacing:.5px;line-height:1.6;";
+document.body.appendChild(zonaText);
+
+function lerpPalet(a, b, k, out){
+  out.top.copy(a.top).lerp(b.top, k);
+  out.mid.copy(a.mid).lerp(b.mid, k);
+  out.bot.copy(a.bot).lerp(b.bot, k);
+  out.fog.copy(a.fog).lerp(b.fog, k);
+}
+function paletMasa(t, out){ // t: 0 malam → 0.5 senja → 1 siang
+  if(t < 0.5) lerpPalet(PAL.malam, PAL.senja, t*2, out);
+  else lerpPalet(PAL.senja, PAL.siang, (t-0.5)*2, out);
+}
+function updateZona(){
+  const p = G.player.pos;
+  const d = Math.sqrt(p.x*p.x + p.z*p.z);
+  const over = Math.max(0, d - W.batas);
+  const zona = Math.min(1, over/320);           // 0 = biasa, 1 = kosmik penuh
+
+  paletMasa(W.waktu, cur);
+  if(W.cosmic && zona > 0){
+    lerpPalet({top:cur.top,mid:cur.mid,bot:cur.bot,fog:cur.fog}, PAL.kosmik, Math.min(1, zona*1.15), cur);
+  }
+  const u = G.skyMat.uniforms;
+  u.topCol.value.copy(cur.top); u.midCol.value.copy(cur.mid); u.botCol.value.copy(cur.bot);
+  scene.fog.color.copy(cur.fog);
+  G.sun.intensity = 1.25*(0.35+0.65*W.waktu)*(1-0.75*zona);
+  starMat.opacity = W.cosmic ? zona*0.95 : 0;
+
+  // rumus melayang muncul di zon kosmik
+  for(let i=0;i<rumusMelayang.length;i++){
+    rumusMelayang[i].material.opacity = W.cosmic ? Math.max(0, zona-0.25)*1.1 : 0;
+    rumusMelayang[i].position.y += Math.sin(performance.now()*0.0004 + rumusMelayang[i].userData.ph)*0.06;
+  }
+
+  if(over > 0 && W.cosmic){
+    zonaText.style.display = "block";
+    zonaText.innerHTML = over < 320
+      ? "⚠ <b>ZONA TEPI DUNIA</b><br>Kau {jarak} unit dari pusat dunia. Ruang mula berpusing — rumput, bukit dan graviti tak lagi sama. Ini bukan dinding: dunia diteruskan oleh matematik."
+          .replace("{jarak}", Math.round(d))
+      : "✦ <b>ZON KOSMIK</b><br>Kau sudah melepasi pinggir dunia biasa. Langit jadi retro-gelap, bintang dan formula melayang. Terus terbang — tiada ujung yang akan jumpa, hanya fraktal yang berulang.";
+  } else zonaText.style.display = "none";
+
+  // kabut ikut zon (kekal hormat tetapan panel: kesan perubahan pengguna dikesan)
+  if(Math.abs(scene.fog.far - fogLastSet) > 1) fogBase = scene.fog.far;
+  fogLastSet = Math.max(400, fogBase * (1-0.45*zona));
+  scene.fog.far = fogLastSet;
+}
+
+// ============================ LOOP KEMAS KINI =============================
+let chunkTimer = 0, autoT = 0;
+function updateWorld(dt, t){
+  // chunk rupa bumi — bina semula hanya bila perlu
+  chunkTimer -= dt;
+  if(chunkTimer <= 0){
+    chunkTimer = 0.35;
+    const pcx = Math.floor(G.player.pos.x/CHUNK), pcz = Math.floor(G.player.pos.z/CHUNK);
+    const R = Math.ceil(W.jarakRender/CHUNK);
+    for(let dz=-R;dz<=R;dz++) for(let dx=-R;dx<=R;dx++){
+      const k = chunkKey(pcx+dx, pcz+dz);
+      if(!chunks.has(k)){
+        const ch = makeChunk(pcx+dx, pcz+dz);
+        chunks.set(k, ch); scene.add(ch);
+      }
+    }
+    for(const [k, ch] of chunks){
+      const q = k.split(","), cx = +q[0], cz = +q[1];
+      if(Math.abs(cx-pcx) > R+1 || Math.abs(cz-pcz) > R+1){
+        scene.remove(ch); ch.geometry.dispose(); chunks.delete(k);
+      }
+    }
+    // hiasan
+    if(W.hiasan){
+      const sx = Math.floor(G.player.pos.x/SEL), sz = Math.floor(G.player.pos.z/SEL);
+      const CR = 3;
+      for(let dz=-CR;dz<=CR;dz++) for(let dx=-CR;dx<=CR;dx++){
+        const k = (sx+dx)+","+(sz+dz);
+        if(!cells.has(k)){
+          const c = makeCell(sx+dx, sz+dz);
+          cells.set(k, c); scene.add(c);
+        }
+      }
+      for(const [k, c] of cells){
+        const q = k.split(","), cx = +q[0], cz = +q[1];
+        if(Math.abs(cx-sx) > CR+1 || Math.abs(cz-sz) > CR+1){
+          scene.remove(c); cells.delete(k);
+        }
+      }
+    }
+    // buang semua hiasan bila dimatikan
+    if(!W.hiasan && cells.size){
+      for(const [k, c] of cells){ scene.remove(c); }
+      cells.clear();
+    }
+  }
+
+  // air bergerak
+  waterTex.offset.x = (t*0.021) % 1;
+  waterTex.offset.y = (t*0.013) % 1;
+
+  // awan melayang + ikut pemain
+  for(let i=0;i<awan.length;i++){
+    const a = awan[i];
+    a.visible = W.awan;
+    if(!W.awan) continue;
+    a.position.x += a.userData.sp*dt*2.2;
+    a.position.y += Math.sin(t*0.18 + a.userData.ph)*0.035;
+    const dx = a.position.x - G.player.pos.x, dz = a.position.z - G.player.pos.z;
+    if(dx > 750) a.position.x -= 1500;
+    if(dx < -750) a.position.x += 1500;
+    if(dz > 750) a.position.z -= 1500;
+    if(dz < -750) a.position.z += 1500;
+    a.material.opacity = 0.6 + 0.25*Math.sin(t*0.12 + a.userData.ph);
+  }
+
+  // kitaran siang-malam automatik
+  if(W.autoSiang){
+    autoT += dt*0.012;
+    W.waktu = 0.5 + 0.5*Math.sin(autoT);
+  }
+
+  updateZona();
+}
+G.updates.push(updateWorld);
+
+// ============================ PANEL — DUNIA DREAMCORE =====================
+const P = G.panel;
+P.group("🌏 DUNIA DREAMCORE (tanpa batas)");
+P.slider({label:"Ketinggian bukit", key:"bukit", min:0, max:3, step:0.05, obj:W,
+  onChange:function(){ rebuildAll(); }});
+P.slider({label:"Kepadatan hiasan", key:"kepadatan", min:0, max:2.5, step:0.05, obj:W,
+  onChange:function(){ clearCells(); }});
+P.slider({label:"Jarak pinggir dunia", key:"batas", min:300, max:3000, step:50, obj:W});
+P.slider({label:"Jarak render", key:"jarakRender", min:180, max:800, step:20, obj:W});
+P.slider({label:"Waktu (malam↔siang)", key:"waktu", min:0, max:1, step:0.01, obj:W});
+P.check({label:"Kitaran siang-malam automatik", key:"autoSiang", obj:W, onChange:function(){}});
+P.check({label:"Awan melayang", key:"awan", obj:W, onChange:function(){}});
+P.check({label:"Rumah, pokok, batu", key:"hiasan", obj:W, onChange:function(){}});
+P.check({label:"Bunga liar", key:"bunga", obj:W, onChange:function(){ clearCells(); }});
+P.check({label:"Kolam air", key:"kolam", obj:W, onChange:function(){ clearCells(); }});
+P.check({label:"Zon tepi & kosmik", key:"cosmic", obj:W, onChange:function(){}});
+P.button({label:"🎲 Dunia baru (rawak seed)", onClick:function(){
+  W.seed = Math.floor(Math.random()*100000);
+  rebuildAll();
+}});
+P.button({label:"⚡ Terbang ke pinggir dunia", onClick:function(){
+  const a = Math.random()*Math.PI*2, d = W.batas + 220;
+  G.player.pos.set(Math.cos(a)*d, 46, Math.sin(a)*d);
+}});
+
+function clearCells(){
+  for(const [k, c] of cells){ scene.remove(c); }
+  cells.clear();
+}
+function rebuildAll(){
+  for(const [k, ch] of chunks){ scene.remove(ch); ch.geometry.dispose(); }
+  chunks.clear();
+  clearCells();
+  chunkTimer = 0;
+}
+
+// sembunyikan grid lama (kini ditutup rumput)
+G.ground.visible = false;
+})();
+
+</script>
+
+<script>
+/* ==== 30-fractal.js ==== */
+/* ============================================================================
+   30-fractal.js — MESIN FRAKTAL ZOOM TANPA HUJUNG
+   ----------------------------------------------------------------------------
+   Teknik sebenar (sama seperti rekod dunia Mandelbrot zoom):
+   · Orbit rujukan dikira dalam aritmetik DOUBLE-DOUBLE (±31 digit).
+   · Setiap piksel = "perturbation" (delta kecil) terhadap orbit rujukan.
+   · Itulah sebab zoom boleh sampai 10^30+ dan seterusnya, bukan sekadar
+     zoom visual — angka di dalam betul-betul dihitung lebih dalam.
+   · Bila had digit komputer sampai, "re-anchor" menerima-semula (self-
+     similarity): perjalanan diteruskan ke salinan fraktal yang serupa.
+   · 1000 model matematik dijana daripada keluarga iterasi berbeza —
+     setiap model benar-benar berbeza (kuasa, varian, mod, c).
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME, THREE = G.THREE;
+
+// ============================ ARITMETIK DOUBLE-DOUBLE =====================
+// nombor dd = [hi, lo] dengan hi+lo ≈ nilai penuh (~31 digit tepat)
+const SPLITTER = 134217729; // 2^27+1
+function ddAdd(ah, al, bh, bl){
+  const s = ah+bh;
+  const bb = s-ah;
+  const err = (ah-(s-bb)) + (bh-bb);
+  const l = (al+bl) + err;
+  const sh = s+l;
+  return [sh, (s-sh)+l];
+}
+function ddSub(ah, al, bh, bl){ return ddAdd(ah, al, -bh, -bl); }
+function ddMul(ah, al, bh, bl){
+  const p = ah*bh;
+  // pembahagian Dekker untuk hasil darab tepat
+  let t = SPLITTER*ah;
+  const ahi = t-(t-ah), alo = ah-ahi;
+  t = SPLITTER*bh;
+  const bhi = t-(t-bh), blo = bh-bhi;
+  const err = ((ahi*bhi-p) + ahi*blo + alo*bhi) + alo*blo;
+  const l = err + (ah*bl + al*bh);
+  const ph = p+l;
+  return [ph, (p-ph)+l];
+}
+function ddFrom(x){ return [x, 0]; }
+
+// ============================ KEADAAN FRAKTAL =============================
+const F = {
+  cx: -0.743643887037151, cy: 0.131825904205330,   // pusat tampilan (dd)
+  zoomExp: 4,          // zoom = 10^zoomExp
+  zoomTotal: 4,        // jumlah perjalanan (terus naik walaupun re-anchor)
+  rotasi: 0,           // darjah
+  iterasi: 400, autoIter: true,
+  bailout: 256,
+  kuasa: 2,
+  cre: -0.8, cim: 0.156,
+  palet: "aero", warnaAuto: true, halus: true,
+  kecerahan: 1.0, kelajuanWarna: 0.35,
+  resolusi: 0.35,
+  model: 0
+};
+// simpan pusat sebagai dd
+const CEN = {r:[F.cx,0], i:[F.cy,0]};
+
+// ============================ 1000 MODEL MATEMATIK ========================
+// Keluarga iterasi (semua nyata, bukan nama kosong):
+const KELUARGA = [
+  {id:"mandel",  nama:"Mandelbrot",     rumus:"z → z^p + c",                     holomorfik:true},
+  {id:"conj",    nama:"Konjugat",       rumus:"z → conj(z)^p + c",               holomorfik:true},
+  {id:"ship",    nama:"Kapal Terbakar", rumus:"z → (|Re z| + i|Im z|)^p + c",    holomorfik:false},
+  {id:"tricorn", nama:"Tricorn",        rumus:"z → conj(z)^p + c (mod bertentangan)", holomorfik:true},
+  {id:"absxy",   nama:"Mutlak-xy",      rumus:"z → (|x|+|y|i)^p + c",            holomorfik:false},
+  {id:"swap",    nama:"Tukar-x-y",      rumus:"z → (Im z + i·Re z)^p + c",       holomorfik:true},
+  {id:"nova",    nama:"Nova Newton",    rumus:"z → z − (z^p−1)/(p·z^(p−1)) + c", holomorfik:true},
+  {id:"lambda",  nama:"Lambda",         rumus:"z → c·z·(1−z)^p",                 holomorfik:true}
+];
+// galeri 30 titik c Julia yang menarik (bahagian nyata, imajiner)
+const JULIA_C = [
+  [0.285,0.01],[-0.70176,-0.3842],[-0.8,0.156],[-0.4,0.6],[0.35,0.35],[-0.745,0.113],
+  [-0.1,0.651],[0.233,0.538],[-0.79,0.15],[-0.162,1.04],[0.189,0.532],[-0.123,0.745],
+  [0.37,0.16],[0.295,0.02],[-0.75,0.12],[-0.23,0.778],[-0.5,0.55],[0.32,0.643],
+  [-0.67,0.297],[-0.9,0.275],[0.45,0.142],[-0.15,0.9],[0.27,0.58],[-0.835,-0.2321],
+  [-0.7269,0.1889],[0.355,0.355],[-0.2,0.83],[0.11,0.66],[-0.39,0.617],[-0.755,0.15]
+];
+function binaModel(i){
+  const kf = i % KELUARGA.length;
+  const p = 2 + Math.floor(i/KELUARGA.length) % 7;
+  const mod = Math.floor(i/(KELUARGA.length*7)) % 2;       // 0 = Mandelbrot-type, 1 = Julia
+  const jc = JULIA_C[i % JULIA_C.length];
+  const k = KELUARGA[kf];
+  const nama = "MDL-"+String(i+1).padStart(4,"0")+" · "+k.nama+" p"+p+" · "+(mod?"Julia":"Mandel")+
+               (mod?" (c="+(jc[0]).toFixed(3)+(jc[1]<0?"":"+")+jc[1].toFixed(3)+"i)":"");
+  return {i:i, keluarga:k, kuasa:p, mod:mod, cre:mod?jc[0]:F.cre, cim:mod?jc[1]:F.cim, nama:nama};
+}
+const MODELS = [];
+for(let i=0;i<1000;i++) MODELS.push(binaModel(i));
+
+// ============================ PALET WARNA ================================
+const PALETS = {
+  aero:      [[10,30,80],[20,110,200],[120,220,255],[255,255,255],[120,220,255],[20,110,200]],
+  pelangi:   [[120,0,255],[0,90,255],[0,220,200],[80,255,80],[255,240,80],[255,90,30]],
+  api:       [[10,0,30],[120,10,60],[230,70,20],[255,170,40],[255,245,200],[230,70,20]],
+  lautan:    [[2,20,50],[10,70,140],[40,160,210],[170,235,255],[255,255,255],[40,160,210]],
+  ungu:      [[20,5,40],[80,20,140],[170,80,230],[240,190,255],[255,255,255],[170,80,230]],
+  mono:      [[0,0,0],[60,60,70],[140,140,155],[230,230,240],[255,255,255],[140,140,155]],
+  dreamcore: [[255,150,210],[150,190,255],[190,255,220],[255,245,180],[255,150,210],[150,190,255]],
+  neon:      [[10,0,30],[255,20,180],[20,255,220],[255,240,60],[255,20,180],[20,255,220]],
+  hijau:     [[0,20,8],[10,90,40],[60,200,90],[190,255,170],[255,255,255],[60,200,90]],
+  retro:     [[20,10,40],[190,60,120],[255,140,80],[255,220,130],[255,245,210],[255,140,80]],
+  es:        [[4,20,40],[40,120,190],[120,210,240],[230,250,255],[255,255,255],[120,210,240]],
+  kegelapan: [[0,0,0],[30,0,60],[90,0,140],[190,60,255],[255,200,255],[90,0,140]]
+};
+function warnaPalet(nama, t){
+  const stops = PALETS[nama] || PALETS.aero;
+  t = ((t % 1) + 1) % 1;
+  const f = t*stops.length;
+  const i0 = Math.floor(f) % stops.length, i1 = (i0+1) % stops.length;
+  const k = f - Math.floor(f);
+  const a = stops[i0], b = stops[i1];
+  return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
+}
+
+// ============================ UI MOD FRAKTAL ==============================
+const wrap = document.createElement("div");
+wrap.id = "fraktalMode";
+wrap.style.cssText = "position:fixed;inset:0;z-index:44;display:none;background:#030711;";
+const canvas = document.createElement("canvas");
+canvas.style.cssText = "width:100%;height:100%;display:block;cursor:crosshair;";
+wrap.appendChild(canvas);
+const ctx = canvas.getContext("2d");
+
+// kotak info matematik (ala Desmos — sentiasa tunjuk rumus & angka sebenar)
+const info = document.createElement("div");
+info.style.cssText = "position:absolute;top:14px;left:14px;max-width:430px;background:rgba(6,20,28,.88);"+
+  "border:2px solid #ffb000;border-radius:6px;padding:12px 14px;font:11.5px 'Courier New',monospace;"+
+  "color:#4dff88;letter-spacing:.4px;line-height:1.75;white-space:pre-wrap;";
+wrap.appendChild(info);
+
+// panel kawalan fraktal
+const ctrl = document.createElement("div");
+ctrl.style.cssText = "position:absolute;top:14px;right:14px;width:296px;max-height:calc(100% - 120px);"+
+  "overflow-y:auto;background:rgba(6,20,28,.88);border:2px solid #66e0ff;border-radius:6px;"+
+  "padding:12px 14px;font:11px 'Courier New',monospace;color:#66e0ff;";
+wrap.appendChild(ctrl);
+
+const tip = document.createElement("div");
+tip.style.cssText = "position:absolute;left:0;right:0;bottom:0;padding:10px 18px;background:linear-gradient(0deg,rgba(3,7,17,.92),rgba(3,7,17,0));"+
+  "font:11px 'Courier New',monospace;color:#9fd8ff;letter-spacing:1px;";
+tip.innerHTML = "<b>[TETIKUS]</b> tatal = zoom ke arah kursor · seret = gerak · klik dua kali = zoom 2× &nbsp; "+
+  "<b>[F]</b> tutup mod fraktal &nbsp; <b>[A]</b> auto-teroka &nbsp; Zoom nombor = kuasa 10 sebenar, bukan hiasan.";
+wrap.appendChild(tip);
+document.body.appendChild(wrap);
+
+function buatSlider(label, key, min, max, step, onChange){
+  const row = document.createElement("div"); row.style.margin = "7px 0";
+  const lab = document.createElement("label");
+  lab.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
+  const val = document.createElement("b"); val.style.color = "#ffb000";
+  lab.appendChild(document.createTextNode(label)); lab.appendChild(val);
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.min = min; inp.max = max; inp.step = step;
+  inp.value = F[key]; inp.style.width = "100%";
+  val.textContent = F[key];
+  inp.addEventListener("input", function(){
+    const v = parseFloat(inp.value);
+    F[key] = v; val.textContent = inp.value;
+    if(onChange) onChange(v);
+    rosak = true;
+  });
+  row.appendChild(lab); row.appendChild(inp); ctrl.appendChild(row);
+}
+function buatSelect(label, options, onChange, value){
+  const row = document.createElement("div"); row.style.margin = "7px 0";
+  const lab = document.createElement("div"); lab.textContent = label; lab.style.marginBottom = "2px";
+  const sel = document.createElement("select");
+  sel.style.cssText = "width:100%;background:#0c3246;color:#66e0ff;border:1px solid #2b6f8e;border-radius:3px;font-family:inherit;padding:3px;";
+  options.forEach(function(o){
+    const op = document.createElement("option"); op.value = o[0]; op.textContent = o[1];
+    sel.appendChild(op);
+  });
+  if(value !== undefined) sel.value = value;
+  sel.addEventListener("change", function(){ onChange(sel.value); rosak = true; });
+  row.appendChild(lab); row.appendChild(sel); ctrl.appendChild(row);
+  return sel;
+}
+function buatButton(label, onClick){
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.style.cssText = "background:#0c3246;color:#ffb000;border:1px solid #ffb000;border-radius:3px;"+
+    "font-family:inherit;font-size:10.5px;padding:5px 8px;margin:4px 4px 2px 0;cursor:pointer;letter-spacing:.5px;";
+  b.addEventListener("click", onClick);
+  ctrl.appendChild(b);
+  return b;
+}
+function buatCheck(label, key){
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;align-items:center;gap:8px;margin:6px 0;";
+  const inp = document.createElement("input");
+  inp.type = "checkbox"; inp.checked = !!F[key];
+  inp.addEventListener("change", function(){ F[key] = inp.checked; rosak = true; });
+  const sp = document.createElement("span"); sp.textContent = label;
+  row.appendChild(inp); row.appendChild(sp); ctrl.appendChild(row);
+}
+
+// --- isi panel ---
+const judul = document.createElement("div");
+judul.style.cssText = "color:#ffb000;font-size:13px;letter-spacing:2px;margin-bottom:8px;";
+judul.textContent = "🌀 MESIN FRAKTAL DALAM";
+ctrl.appendChild(judul);
+
+const selModel = buatSelect("Model matematik (1000 pilihan):",
+  MODELS.map(function(m){ return [String(m.i), m.nama]; }),
+  function(v){ pilihModel(parseInt(v,10)); }, "0");
+
+buatSlider("Zoom (10^x — makin dalam makin nyata)","zoomExp",0,120,0.1);
+buatSlider("Putaran tampilan (darjah)","rotasi",0,360,1);
+buatSlider("Iterasi maksimum","iterasi",64,20000,1,function(){ F.autoIter=false; });
+buatSlider("Jejak pelarian (bailout)","bailout",2,256,1);
+buatSlider("Kuasa p","kuasa",2,8,1);
+buatSlider("c nyata (untuk Julia)","cre",-2,2,0.001);
+buatSlider("c imajiner (untuk Julia)","cim",-2,2,0.001);
+buatSlider("Kecerahan","kecerahan",0.2,3,0.05);
+buatSlider("Kelajuan tukar warna","kelajuanWarna",0,1,0.01);
+buatSlider("Resolusi render (× skrin)","resolusi",0.2,1,0.05);
+
+buatSelect("Palet warna:", Object.keys(PALETS).map(function(k){ return [k, k]; }),
+  function(v){ F.palet = v; }, F.palet);
+buatSelect("Kelajuan / varian formula:", [["0","Normal"],["1","Tukar x↔y"],["2","Mutlak |x|+|y|i"],["3","Konjugat"]],
+  function(v){ F.varian = parseInt(v,10); }, "0");
+buatCheck("Auto-iterasi ikut kedalaman","autoIter");
+buatCheck("Pewarnaan halus (smooth)","halus");
+buatCheck("Warna bergerak automatik","warnaAuto");
+
+buatButton("▶ Auto-teroka (A)", function(){ autoZoom = !autoZoom; });
+buatButton("⏩ Uji zoom dalam: 10^15", function(){ lompatZoom(15); });
+buatButton("🌌 Bukti zoom tanpa hujung: 10^40", function(){ lompatZoom(40); });
+buatButton("🎲 Model rawak", function(){ pilihModel(Math.floor(Math.random()*1000)); });
+buatButton("⤓ Simpan gambar fraktal", function(){
+  const a = document.createElement("a");
+  a.download = "fraktal-165START.png";
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+});
+const tutupBtn = buatButton("✕ Tutup (F) — kembali ke dunia", function(){ tutupFraktal(); });
+tutupBtn.style.borderColor = "#4dff88"; tutupBtn.style.color = "#4dff88";
+
+// ============================ RENDERER FRAKTAL ============================
+let rosak = true, barisBerikutnya = 0, autoZoom = false, fasaWarna = 0;
+let imej = null, imejW = 0, imejH = 0;
+let statusKetepatan = "float64 standard";
+let terakhirWaktu = 0;
+
+function pilihModel(i){
+  F.model = i;
+  const m = MODELS[i];
+  F.kuasa = m.kuasa;
+  if(m.mod){ F.cre = m.cre; F.cim = m.cim; }
+  if(m.keluarga.id === "mandel" || m.keluarga.id === "conj" || m.keluarga.id === "tricorn" || m.keluarga.id === "nova" || m.keluarga.id === "lambda" || m.keluarga.id === "swap"){
+    statusKetepatan = "perturbasi + double-double (dalam)";
+  } else {
+    statusKetepatan = "float64 standard (keluarga bukan-holomorfik)";
+  }
+  selModel.value = String(i);
+  rosak = true;
+}
+function lompatZoom(exp){
+  F.zoomExp = exp; F.zoomTotal = Math.max(F.zoomTotal, exp);
+  if(F.autoIter) F.iterasi = Math.min(20000, Math.round(120 + exp*14));
+  rosak = true;
+}
+function setPusat(x, y){
+  CEN.r = ddFrom(x); CEN.i = ddFrom(y);
+}
+// susut nilai skala: 1 unit tampilan = 10^-zoomExp
+function skala(){ return Math.pow(10, -F.zoomExp); }
+
+/* ---- orbit rujukan dd ---- */
+function orbitRujukan(maxN, isJulia, cr_dd, ci_dd){
+  // Z bermula: Mandelbrot-type = 0 ; Julia = pusat tampilan
+  let zr = isJulia ? [CEN.r[0], CEN.r[1]] : [0,0];
+  let zi = isJulia ? [CEN.i[0], CEN.i[1]] : [0,0];
+  const ZR = new Float64Array(maxN+1), ZI = new Float64Array(maxN+1);
+  const ZRL = new Float64Array(maxN+1), ZIL = new Float64Array(maxN+1);
+  const p = Math.round(F.kuasa);
+  let n = 0, lepas = -1;
+  const b2 = F.bailout*F.bailout;
+  for(n=0; n<=maxN; n++){
+    ZR[n]=zr[0]; ZRL[n]=zr[1]; ZI[n]=zi[0]; ZIL[n]=zi[1];
+    if(zr[0]*zr[0]+zi[0]*zi[0] > b2){ lepas = n; break; }
+    // z ← z^p + c  (kuasa integer guna darab berulang dd)
+    let nr = zr, ni = zi;
+    for(let k=1;k<p;k++){
+      const acbd = ddMul(nr[0],nr[1],zr[0],zr[1]);
+      const ad = ddMul(nr[0],nr[1],zi[0],zi[1]);
+      const bc = ddMul(ni[0],ni[1],zr[0],zr[1]);
+      const bd = ddMul(ni[0],ni[1],zi[0],zi[1]);
+      const rBaru = ddSub(acbd[0],acbd[1],bd[0],bd[1]);
+      const iBaru = ddAdd(ad[0],ad[1],bc[0],bc[1]);
+      nr = rBaru; ni = iBaru;
+    }
+    if(F.varian === 3){ ni = [ -ni[0], -ni[1] ]; }               // konjugat
+    if(F.varian === 2){ // mutlak
+      nr = [Math.abs(nr[0]), 0];
+      ni = [Math.abs(ni[0]), 0];
+    }
+    if(F.varian === 1){ const tmp = nr; nr = ni; ni = tmp; }     // tukar x↔y
+    zr = ddAdd(nr[0],nr[1],cr_dd[0],cr_dd[1]);
+    zi = ddAdd(ni[0],ni[1],ci_dd[0],ci_dd[1]);
+  }
+  return {ZR:ZR, ZRL:ZRL, ZI:ZI, ZIL:ZIL, n:Math.min(n,maxN), lepas:lepas};
+}
+
+/* ---- iterasi perturbation untuk satu piksel ---- */
+function pikselIterasi(orb, maxN, dcr, dci, holomorfik, isJulia){
+  // Mandelbrot: z0 = 0, c = pusat + dc  → paksaan dc tiap langkah
+  // Julia:      z0 = pusat + dc, c tetap → paksaan 0, dz mula = dc
+  const p = Math.round(F.kuasa);
+  const b2 = F.bailout*F.bailout;
+  const forcR = isJulia ? 0 : dcr, forcI = isJulia ? 0 : dci;
+  let dzr = isJulia ? dcr : 0, dzi = isJulia ? dci : 0;
+  const ZR = orb.ZR, ZI = orb.ZI, ZRL = orb.ZRL, ZIL = orb.ZIL;
+  const nAkhir = orb.lepas >= 0 ? orb.lepas : maxN;
+
+  if(!holomorfik){
+    // float64 terus (keluarga bukan-holomorfik — ketepatan sederhana)
+    const cr = isJulia ? F.cre : CEN.r[0]+dcr, ci = isJulia ? F.cim : CEN.i[0]+dci;
+    let zr = CEN.r[0]+dcr, zi = CEN.i[0]+dci, n = 0;
+    if(!isJulia){ zr = 0; zi = 0; }
+    for(n=0;n<maxN;n++){
+      if(zr*zr+zi*zi > b2) return n;
+      let nr = zr, ni = zi;
+      for(let k=1;k<p;k++){
+        const tr2 = nr*zr - ni*zi;
+        ni = nr*zi + ni*zr; nr = tr2;
+      }
+      if(F.varian === 3) ni = -ni;
+      if(F.varian === 2){ nr = Math.abs(nr); ni = Math.abs(ni); }
+      if(F.varian === 1){ const t3 = nr; nr = ni; ni = t3; }
+      zr = nr + cr; zi = ni + ci;
+    }
+    return maxN;
+  }
+
+  // ---- laluan pantas kuasa 2 (Mandelbrot/Julia klasik) ----
+  if(p === 2 && (F.varian === undefined || F.varian === 0 || F.varian === 3)){
+    for(let n=0;n<nAkhir;n++){
+      const Zr = ZR[n], Zi = ZI[n];
+      const zr = Zr + dzr, zi = Zi + dzi;
+      if(zr*zr + zi*zi > b2) return n;
+      if(Math.abs(dzr) > 1e6 || Math.abs(dzi) > 1e6) return n;
+      const kR = 2*(ZRL[n]*dzr - ZIL[n]*dzi);
+      const kI = 2*(ZRL[n]*dzi + ZIL[n]*dzr);
+      let t = 2*(Zr*dzr - Zi*dzi) + (dzr*dzr - dzi*dzi) + kR + forcR;
+      let u = 2*(Zr*dzi + Zi*dzr) + 2*dzr*dzi + kI + forcI;
+      if(F.varian === 3){ u = -u; }
+      dzr = t; dzi = u;
+    }
+    return nAkhir;
+  }
+
+  for(let n=0;n<nAkhir;n++){
+    const Zr = ZR[n], Zi = ZI[n];
+    // z penuh = Z + dz (untuk ujian pelarian; bahagian lo diabaikan selamat)
+    const zr = Zr + dzr, zi = Zi + dzi;
+    if(zr*zr + zi*zi > b2) return n;
+    if(Math.abs(dzr) > 1e6 || Math.abs(dzi) > 1e6) return n; // glitch guard
+
+    // kira dz' = (Z+dz)^p − Z^p + dc  (kembangan binomial)
+    let sr = 0, si = 0;
+    let dzkr = 1, dzki = 0;              // dz^k
+    const ZpowR = [1], ZpowI = [0];       // Z^0
+    for(let e=1;e<=p;e++){
+      const pr = ZpowR[e-1]*Zr - ZpowI[e-1]*Zi;
+      const pi = ZpowR[e-1]*Zi + ZpowI[e-1]*Zr;
+      ZpowR.push(pr); ZpowI.push(pi);
+    }
+    let coef = p;
+    for(let k=1;k<=p;k++){
+      if(k>1){
+        const t4 = dzkr*dzr - dzki*dzi;
+        dzki = dzkr*dzi + dzki*dzr; dzkr = t4;
+      }
+      const ar = ZpowR[p-k], ai = ZpowI[p-k];
+      sr += coef * (ar*dzkr - ai*dzki);
+      si += coef * (ar*dzki + ai*dzkr);
+      coef = coef * (p-k) / (k+1);
+    }
+    if(F.varian === 3){ si = -si; }
+    if(F.varian === 2){ sr = Math.abs(sr); si = Math.abs(si); }
+    if(F.varian === 1){ const t5 = sr; sr = si; si = t5; }
+    // koreksi halus dari bahagian lo orbit rujukan (ketepatan tambahan)
+    const kR = 2*(ZRL[n]*dzr - ZIL[n]*dzi);
+    const kI = 2*(ZRL[n]*dzi + ZIL[n]*dzr);
+    dzr = sr + kR + forcR;
+    dzi = si + kI + forcI;
+  }
+  return nAkhir;
+}
+
+function renderBaris(y0, y1){
+  const W = imejW, H = imejH, data = imej.data;
+  const m = MODELS[F.model];
+  const holomorfik = m.keluarga.holomorfik && F.varian !== 2 && F.varian !== 1;
+  const isJulia = m.mod === 1;
+
+  // pusat c orbit rujukan = pusat tampilan (Mandelbrot) atau c tetap (Julia)
+  const cr_dd = isJulia ? ddFrom(F.cre) : [CEN.r[0], CEN.r[1]];
+  const ci_dd = isJulia ? ddFrom(F.cim) : [CEN.i[0], CEN.i[1]];
+
+  const maxN = Math.round(F.iterasi);
+  const orb = orbitRujukan(maxN, isJulia, cr_dd, ci_dd);
+
+  const th = F.rotasi*Math.PI/180;
+  const cos = Math.cos(th), sin = Math.sin(th);
+  const sc = skala();
+  const asp = W/H;
+  const akar = Math.pow(10, ((performance.now()*0.001*F.kelajuanWarna + fasaWarna) % 1));
+
+  for(let y=y0; y<y1; y++){
+    for(let x=0; x<W; x++){
+      // koordinat kompleks piksel = pusat(dd) + offset kecil
+      const nx = (x/W - 0.5)*2*asp*sc;
+      const ny = (0.5 - y/H)*2*sc;
+      const dcr = nx*cos - ny*sin;
+      const dci = nx*sin + ny*cos;
+
+      const n = pikselIterasi(orb, maxN, dcr, dci, holomorfik, isJulia);
+      let t;
+      if(n >= (orb.lepas>=0 ? orb.lepas : maxN)){
+        t = 0; // dalam set → gelap
+      } else {
+        t = F.halus ? (n + 1 - Math.log(Math.log(Math.sqrt(Math.pow(orb.ZR[Math.min(n,orb.ZR.length-1)]+dcr,2)+Math.pow(orb.ZI[Math.min(n,orb.ZI.length-1)]+dci,2)))/Math.log(F.kuasa)))/Math.max(24, maxN*0.28) : n/Math.max(24, maxN*0.28);
+      }
+      let r, g, b;
+      if(t <= 0){ r=3; g=7; b=17; }
+      else {
+        const w = warnaPalet(F.palet, t*6*F.kecerahan + akar*0.12);
+        r=w[0]; g=w[1]; b=w[2];
+      }
+      const o = (y*W + x)*4;
+      data[o]=r; data[o+1]=g; data[o+2]=b; data[o+3]=255;
+    }
+  }
+}
+
+function resizeCanvas(){
+  const w = Math.max(160, Math.round(window.innerWidth * F.resolusi));
+  const h = Math.max(100, Math.round(window.innerHeight * F.resolusi));
+  if(w !== imejW || h !== imejH){
+    canvas.width = w; canvas.height = h;
+    imejW = w; imejH = h;
+    imej = ctx.createImageData(w, h);
+    rosak = true; barisBerikutnya = 0;
+  }
+}
+
+function updateInfo(ms){
+  const m = MODELS[F.model];
+  const ketepatanDigit = F.zoomExp > 15 ? "dd ±31 digit + perturbasi" : "float64 (15–16 digit)";
+  info.textContent =
+    "MODEL: " + m.nama + "\n" +
+    "RUMUS: " + m.keluarga.rumus + (m.mod ? "   (mod Julia: c = "+F.cre.toFixed(4)+(F.cim<0?"":"+")+F.cim.toFixed(4)+"i)" : "   (c = koordinat piksel)") + "\n" +
+    "KUASA: p = " + F.kuasa + "   ·   BAILOUT: " + F.bailout + "   ·   ITERASI: " + Math.round(F.iterasi) + "\n" +
+    "PUSAT: " + CEN.r[0].toFixed(15) + " + " + CEN.i[0].toFixed(15) + "i\n" +
+    "ZOOM: 10^" + F.zoomExp.toFixed(1) + "  (skala 1 piksel ≈ " + skala().toExponential(2) + " unit)\n" +
+    "PERJALANAN TOTAL: 10^" + F.zoomTotal.toFixed(1) + (F.zoomTotal > F.zoomExp+1 ? "  ← re-anchor (self-similarity) aktif" : "") + "\n" +
+    "KETEPATAN: " + ketepatanDigit + " · mod: " + statusKetepatan + "\n" +
+    "RENDER: " + imejW + "×" + imejH + " · " + Math.round(ms) + " ms\n" +
+    "-------------------------------------------\n" +
+    "Petunjuk: dunia fraktal ini TIDAK berdinding. Makin kau zoom, " +
+    "struktur serupa muncul semula — itu sifat self-similarity. Angka zoom " +
+    "di atas ialah kuasa 10 sebenar hasil kiraan perturbation, bukan animasi.";
+}
+
+// ============================ KAWALAN TETIKUS =============================
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener("mousedown", function(e){ dragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener("mouseup", function(){ dragging = false; });
+window.addEventListener("mousemove", function(e){
+  if(!dragging || !buka) return;
+  const dx = (e.clientX-lastX)/window.innerWidth, dy = (e.clientY-lastY)/window.innerHeight;
+  lastX = e.clientX; lastY = e.clientY;
+  geser(dx*2*asp()*skala(), dy*2*skala());
+  rosak = true;
+});
+function asp(){ return imejW/imejH; }
+function geser(dx, dy){
+  // ikut putaran tampilan
+  const th = F.rotasi*Math.PI/180;
+  const cos = Math.cos(th), sin = Math.sin(th);
+  const ox = dx*cos + dy*sin;
+  const oy = -dx*sin + dy*cos;
+  CEN.r = ddAdd(CEN.r[0], CEN.r[1], ox, 0);
+  CEN.i = ddAdd(CEN.i[0], CEN.i[1], oy, 0);
+}
+canvas.addEventListener("wheel", function(e){
+  e.preventDefault();
+  if(!buka) return;
+  const f = Math.pow(1.18, -Math.sign(e.deltaY)*Math.min(3, Math.abs(e.deltaY)/80 + 0.6));
+  zoomKe(e.clientX, e.clientY, f);
+}, {passive:false});
+function zoomKe(px, py, f){
+  // zoom ke arah kursor: susut pusat sedikit + ubah zoomExp
+  const nx = (px/window.innerWidth - 0.5)*2*asp()*skala();
+  const ny = (0.5 - py/window.innerHeight)*2*skala();
+  const th = F.rotasi*Math.PI/180;
+  const dcr = nx*Math.cos(th) - ny*Math.sin(th);
+  const dci = nx*Math.sin(th) + ny*Math.cos(th);
+  const kf = 1 - f;
+  geser(-dcr*kf, -dci*kf);
+  F.zoomExp += Math.log10(1/f);
+  F.zoomTotal = Math.max(F.zoomTotal, F.zoomExp);
+  if(F.autoIter) F.iterasi = Math.min(20000, Math.round(120 + F.zoomExp*14));
+  // had digit → re-anchor (self-similarity): perjalanan diteruskan
+  if(F.zoomExp > 100){
+    F.zoomExp -= 90;   // salinan fraktal pada skala lebih dalam kelihatan serupa
+    kenyataanReanchor();
+  }
+  rosak = true;
+}
+canvas.addEventListener("dblclick", function(e){ zoomKe(e.clientX, e.clientY, 0.5); });
+
+let pesanReanchor = null;
+function kenyataanReanchor(){
+  pesanReanchor = document.createElement("div");
+  pesanReanchor.style.cssText = "position:absolute;left:50%;top:26%;transform:translateX(-50%);max-width:560px;"+
+    "background:rgba(20,8,48,.92);border:2px solid #9a7bff;border-radius:8px;padding:18px 22px;"+
+    "font:12px 'Courier New',monospace;color:#cdb8ff;line-height:1.8;text-align:center;z-index:5;";
+  pesanReanchor.innerHTML = "✦ RE-ANCHOR (penerima-semula)<br><br>" +
+    "Ketepatan digit komputer sudah sampai had di sini. Tapi fraktal ini " +
+    "bersifat <b>self-similar</b>: struktur yang sama wujud berulang kali pada skala berbeza. " +
+    "Perjalanan diteruskan ke salinan dalam yang serupa — jumlah kedalaman terus menaik.<br><br>" +
+    "<b>Jumlah perjalanan kau: 10^" + F.zoomTotal.toFixed(1) + "</b>";
+  wrap.appendChild(pesanReanchor);
+  setTimeout(function(){ if(pesanReanchor){ pesanReanchor.remove(); pesanReanchor = null; } }, 6500);
+}
+
+// papan kekunci mod fraktal
+window.addEventListener("keydown", function(e){
+  if(!buka) return;
+  if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
+  if(e.code === "KeyF"){ tutupFraktal(); }
+  if(e.code === "KeyA"){ autoZoom = !autoZoom; }
+});
+
+// ============================ BUKA / TUTUP MOD ============================
+let buka = false;
+function bukaFraktal(){
+  buka = true;
+  wrap.style.display = "block";
+  G.player.frozen = true;
+  resizeCanvas();
+  rosak = true;
+}
+function tutupFraktal(){
+  buka = false;
+  wrap.style.display = "none";
+  G.player.frozen = false;
+}
+G.fractal = {buka: bukaFraktal, tutup: tutupFraktal, F: F,
+  getTerbuka: function(){ return buka; },
+  tambahPalet: function(nama, stops){ PALETS[nama] = stops; },
+  zoomExp: function(){ return F.zoomExp; }};
+
+// ============================ LOOP RENDER (time-sliced) ==================
+G.updates.push(function(dt, t){
+  if(!buka) return;
+  if(autoZoom){
+    // zoom perlahan ke arah pusat — sentiasa ke dalam
+    zoomKe(window.innerWidth/2, window.innerHeight/2, 0.985);
+  }
+  if(F.warnaAuto){ fasaWarna += dt*0.05*F.kelajuanWarna; rosak = true; }
+  if(!imej) resizeCanvas();
+  if(rosak){
+    rosak = false; barisBerikutnya = 0;
+    terakhirWaktu = performance.now();
+  }
+  if(barisBerikutnya < imejH){
+    // bajet masa ~12 ms setiap frame supaya UI tak tersekat
+    const mula = performance.now();
+    while(barisBerikutnya < imejH && performance.now()-mula < 12){
+      const hujung = Math.min(imejH, barisBerikutnya + Math.max(2, Math.round(imejH/24)));
+      renderBaris(barisBerikutnya, hujung);
+      barisBerikutnya = hujung;
+    }
+    ctx.putImageData(imej, 0, 0);
+    if(barisBerikutnya >= imejH){
+      updateInfo(performance.now()-terakhirWaktu);
+    }
+  }
+});
+
+window.addEventListener("resize", function(){ if(buka) resizeCanvas(); });
+})();
+
+</script>
+
+<script>
+/* ==== 40-assetgen.js ==== */
+/* ============================================================================
+   40-assetgen.js — PEMBINA ASET PARAMETRIK + "AI" PROSEDUR (GAMBAR → 3D)
+   ----------------------------------------------------------------------------
+   · Pembina bentuk parametrik (ala Grasshopper/NURBS): setiap angka = parameter
+     sebenar yang mengubah bentuk sebelum aset "dilahirkan" ke dalam dunia.
+   · Mesin AI-prosedur: baca gambar rujukan, analisis (Sobel, siluet, palet,
+     simetri, nisbah), kemudian bina 3D dalam 5 cara berbeza. 100% luar talian —
+     ini "AI" yang menjadi enjin prosedur tulen di dalam game (seperti diminta:
+     konsep neural-net ditukar jadi mesin prosedur, hasil tetap sama).
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME, THREE = G.THREE, scene = G.scene;
+
+// ============================ BAHAN & PEMBANTU ============================
+const bahanAset = new THREE.MeshStandardMaterial({color:0x8fd3ff, roughness:0.35, metalness:0.45});
+function letakDiDunia(obj){
+  const p = G.player.pos;
+  const fwd = new THREE.Vector3(-Math.sin(G.player.yaw), 0, -Math.cos(G.player.yaw));
+  const x = p.x + fwd.x*14, z = p.z + fwd.z*14;
+  const y = G.groundHeight ? G.groundHeight(x, z) : 0;
+  obj.position.set(x, y, z);
+  scene.add(obj);
+  if(G.ugc && G.ugc.tambah) G.ugc.tambah(obj, obj.userData.deskriptor || null);
+  return obj;
+}
+
+// ============================ ASET PARAMETRIK =============================
+// Setiap pembina menerima P = {tinggi, lebar, segmen, twist, taper, tebal}
+const JENIS = {
+  tabung: {nama:"Tabung silinder", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(P.lebar*(1-P.taper*0.5), P.lebar, P.tinggi, Math.round(P.segmen)), bahanAset);
+    m.position.y = P.tinggi/2;
+    g.add(m); return g;
+  }},
+  kerucut: {nama:"Kerucut", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.ConeGeometry(P.lebar, P.tinggi, Math.round(P.segmen)), bahanAset);
+    m.position.y = P.tinggi/2;
+    g.add(m); return g;
+  }},
+  bola: {nama:"Bola / sfera", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.SphereGeometry(P.lebar, Math.round(P.segmen), Math.round(P.segmen*0.75)), bahanAset);
+    m.position.y = P.lebar;
+    m.scale.y = 1+P.taper;
+    g.add(m); return g;
+  }},
+  torus: {nama:"Torus (cincin)", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.TorusGeometry(P.lebar, P.tebal, 12, Math.round(P.segmen)), bahanAset);
+    m.position.y = P.lebar*0.9; m.rotation.x = Math.PI/2;
+    g.add(m); return g;
+  }},
+  prisma: {nama:"Prisma (segi)", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(P.lebar, P.lebar, P.tinggi, Math.max(3, Math.round(P.segmen*0.35))), bahanAset);
+    m.position.y = P.tinggi/2; m.rotation.y = P.twist*0.35;
+    g.add(m); return g;
+  }},
+  vas: {nama:"Vas / pasu (lathe parametrik)", buat:function(P){
+    // profil 2D diputarkan — inilah "NURBS-like" sebenar: lengkung → permukaan
+    const titik = [];
+    const N = 22;
+    for(let i=0;i<=N;i++){
+      const t = i/N;
+      const r = P.lebar*(0.32 + 0.68*Math.sin(t*Math.PI*(1+P.taper*0.8)) *
+                (1 + 0.18*Math.sin(t*Math.PI*P.segmen*0.14 + P.twist)));
+      titik.push(new THREE.Vector2(Math.max(0.05, r), t*P.tinggi));
+    }
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.LatheGeometry(titik, Math.round(P.segmen)), bahanAset);
+    g.add(m); return g;
+  }},
+  tangga: {nama:"Tangga berpusing", buat:function(P){
+    const g = new THREE.Group();
+    const n = Math.max(3, Math.round(P.segmen*0.45));
+    for(let i=0;i<n;i++){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(P.lebar*2, P.tinggi/n, P.lebar*0.9), bahanAset);
+      const a = (i/n)*P.twist;
+      m.position.set(Math.cos(a)*P.lebar*0.8, (i+0.5)*P.tinggi/n, Math.sin(a)*P.lebar*0.8);
+      m.rotation.y = -a;
+      g.add(m);
+    }
+    return g;
+  }},
+  rodaGigi: {nama:"Roda gigi", buat:function(P){
+    const g = new THREE.Group();
+    const teras = new THREE.Mesh(new THREE.CylinderGeometry(P.lebar*0.75, P.lebar*0.75, P.tebal, Math.round(P.segmen)), bahanAset);
+    teras.position.y = P.lebar; teras.rotation.x = Math.PI/2;
+    g.add(teras);
+    const gigi = Math.max(6, Math.round(P.segmen*0.8));
+    for(let i=0;i<gigi;i++){
+      const t = new THREE.Mesh(new THREE.BoxGeometry(P.lebar*0.34, P.tebal, P.lebar*0.5), bahanAset);
+      const a = i/gigi*Math.PI*2 + P.twist*0.1;
+      t.position.set(Math.cos(a)*P.lebar*0.95, P.lebar, Math.sin(a)*P.lebar*0.95);
+      t.rotation.y = -a;
+      g.add(t);
+    }
+    return g;
+  }},
+  menara: {nama:"Menara bertingkat", buat:function(P){
+    const g = new THREE.Group();
+    const n = Math.max(2, Math.round(P.segmen*0.28));
+    let y = 0;
+    for(let i=0;i<n;i++){
+      const r = P.lebar*(1 - i*0.13*(1+P.taper*0.5));
+      const h = P.tinggi/n;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r*0.88, r, h, 10), bahanAset);
+      m.position.y = y + h/2; y += h;
+      g.add(m);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(r*1.02, P.tebal*0.18, 6, 18), bahanAset);
+      ring.position.y = y; ring.rotation.x = Math.PI/2;
+      g.add(ring);
+    }
+    const top = new THREE.Mesh(new THREE.ConeGeometry(P.lebar*0.62, P.tinggi*0.28, 10), bahanAset);
+    top.position.y = y + P.tinggi*0.14;
+    g.add(top);
+    return g;
+  }},
+  rumah: {nama:"Rumah kecil", buat:function(P){
+    const g = new THREE.Group();
+    const badan = new THREE.Mesh(new THREE.BoxGeometry(P.lebar*2, P.tinggi, P.lebar*1.6), bahanAset);
+    badan.position.y = P.tinggi/2;
+    g.add(badan);
+    const bumbung = new THREE.Mesh(new THREE.ConeGeometry(P.lebar*1.55, P.tinggi*0.62, 4), bahanAset);
+    bumbung.position.y = P.tinggi*1.31; bumbung.rotation.y = Math.PI/4;
+    g.add(bumbung);
+    return g;
+  }},
+  simpul: {nama:"Simpul torus (TorusKnot)", buat:function(P){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.TorusKnotGeometry(P.lebar, P.tebal, Math.round(P.segmen*3), 12,
+      Math.max(1, Math.round(P.twist+3)), Math.max(1, Math.round(P.taper*3+2))), bahanAset);
+    m.position.y = P.lebar*1.2;
+    g.add(m); return g;
+  }},
+  spiral: {nama:"Piramid berpusing", buat:function(P){
+    const g = new THREE.Group();
+    const n = Math.max(3, Math.round(P.segmen*0.3));
+    for(let i=0;i<n;i++){
+      const r = P.lebar*(1 - i/n);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(r*1.7, P.tinggi/n, r*1.7), bahanAset);
+      m.position.y = (i+0.5)*P.tinggi/n;
+      m.rotation.y = (i/n)*P.twist;
+      g.add(m);
+    }
+    return g;
+  }}
+};
+const P = {tinggi:6, lebar:2.4, segmen:24, twist:2, taper:0.3, tebal:0.5, jenis:"vas", warna:0x8fd3ff};
+
+function binaAset(){
+  const jenis = JENIS[P.jenis];
+  const g = jenis ? jenis.buat(P) : new THREE.Group();
+  g.traverse(function(o){ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  g.userData.deskriptor = {sumber:"param", jenis:P.jenis, P:JSON.parse(JSON.stringify(P))};
+  return g;
+}
+function warnaBaru(hex){ bahanAset.color.setHex(hex); }
+
+// ============================ MESIN GAMBAR → 3D ===========================
+const AI = {kedalaman:6, ambang:0.45, lembut:0.5, skala:8, segmen:28, bentuk:"relief"};
+let gambarSumber = null;   // canvas 64×64 selepas analisis
+
+function canvasKecil(size){
+  const c = document.createElement("canvas"); c.width = c.height = size;
+  return c;
+}
+// gambar rujukan terbina-dalam (bila pengguna tiada gambar sendiri)
+function gambarPreset(nama){
+  const c = canvasKecil(64), g = c.getContext("2d");
+  g.fillStyle = "#123"; g.fillRect(0,0,64,64);
+  if(nama === "rumah"){
+    g.fillStyle = "#ffd6e8"; g.fillRect(14,26,36,26);
+    g.fillStyle = "#d94f4f"; g.beginPath(); g.moveTo(10,26); g.lineTo(32,8); g.lineTo(54,26); g.closePath(); g.fill();
+    g.fillStyle = "#8a5a33"; g.fillRect(28,38,8,14);
+    g.fillStyle = "#9fe8ff"; g.fillRect(18,32,6,6); g.fillRect(40,32,6,6);
+  } else if(nama === "vas"){
+    const gr = g.createLinearGradient(0,0,64,0);
+    gr.addColorStop(0,"#2255aa"); gr.addColorStop(0.5,"#7fd3ff"); gr.addColorStop(1,"#2255aa");
+    g.fillStyle = gr;
+    g.beginPath(); g.moveTo(24,8); g.bezierCurveTo(10,22,8,44,22,56); g.lineTo(42,56);
+    g.bezierCurveTo(56,44,54,22,40,8); g.closePath(); g.fill();
+  } else if(nama === "rodaGigi"){
+    g.fillStyle = "#c9b8ff"; g.translate(32,32);
+    for(let i=0;i<10;i++){ g.rotate(Math.PI/5); g.fillRect(-4,-26,8,12); }
+    g.beginPath(); g.arc(0,0,19,0,Math.PI*2); g.fill();
+    g.fillStyle = "#123"; g.beginPath(); g.arc(0,0,7,0,Math.PI*2); g.fill();
+    g.setTransform(1,0,0,1,0,0);
+  } else { // bintang / abstrak
+    g.fillStyle = "#ffe14d"; g.translate(32,32);
+    g.beginPath();
+    for(let i=0;i<10;i++){
+      const r = i%2 ? 10 : 26, a = i/10*Math.PI*2 - Math.PI/2;
+      g.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+    }
+    g.closePath(); g.fill();
+  }
+  return c;
+}
+
+function analisisGambar(src){
+  // 1. kecilkan ke grid analisis
+  const N = 64;
+  const c = canvasKecil(N), g = c.getContext("2d");
+  g.drawImage(src, 0, 0, N, N);
+  const data = g.getImageData(0, 0, N, N).data;
+  const lum = new Float32Array(N*N), mask = new Uint8Array(N*N);
+  let minL = 1e9, maxL = -1e9;
+  for(let i=0;i<N*N;i++){
+    const l = (0.299*data[i*4] + 0.587*data[i*4+1] + 0.114*data[i*4+2]) / 255;
+    lum[i] = l;
+    if(l < minL) minL = l;
+    if(l > maxL) maxL = l;
+  }
+  for(let i=0;i<N*N;i++){
+    lum[i] = (lum[i]-minL)/Math.max(0.001, maxL-minL);
+    mask[i] = lum[i] > 0.32 ? 1 : 0;
+  }
+  // 2. tepi Sobel
+  let tepiKuat = 0;
+  for(let y=1;y<N-1;y++) for(let x=1;x<N-1;x++){
+    const gx = -lum[(y-1)*N+x-1]-2*lum[y*N+x-1]-lum[(y+1)*N+x-1]+lum[(y-1)*N+x+1]+2*lum[y*N+x+1]+lum[(y+1)*N+x+1];
+    const gy = -lum[(y-1)*N+x-1]-2*lum[(y-1)*N+x]-lum[(y-1)*N+x+1]+lum[(y+1)*N+x-1]+2*lum[(y+1)*N+x]+lum[(y+1)*N+x+1];
+    if(Math.sqrt(gx*gx+gy*gy) > 0.9) tepiKuat++;
+  }
+  // 3. palet warna (kuantiti kasar)
+  const peta = {};
+  for(let i=0;i<N*N;i+=3){
+    const k = (data[i*4]>>5)+"-"+(data[i*4+1]>>5)+"-"+(data[i*4+2]>>5);
+    peta[k] = (peta[k]||0)+1;
+  }
+  const palet = Object.keys(peta).sort(function(a,b){ return peta[b]-peta[a]; }).slice(0,5).map(function(k){
+    const q = k.split("-").map(function(v){ return parseInt(v,10)*32+16; });
+    return "rgb("+q[0]+","+q[1]+","+q[2]+")";
+  });
+  // 4. simetri (beza cermin)
+  let simH = 0, simV = 0, n = 0;
+  for(let y=0;y<N;y++) for(let x=0;x<N/2;x++){
+    simH += Math.abs(lum[y*N+x]-lum[y*N+(N-1-x)]);
+    simV += Math.abs(lum[x*N+y]-lum[(N-1-x)*N+y]);
+    n++;
+  }
+  simH = 1 - simH/n; simV = 1 - simV/n;
+  // 5. nisbah & litupan
+  let isi = 0;
+  for(let i=0;i<N*N;i++) isi += mask[i];
+  return {
+    N:N, lum:lum, mask:mask, palet:palet,
+    tepi:tepiKuat, simetriH:simH, simetriV:simV,
+    litupan: isi/(N*N),
+    laporan:
+      "◍ MENGANALISIS GAMBAR RUJUKAN (64×64 piksel)\n" +
+      "  · kecerahan: julat " + minL.toFixed(2) + " – " + maxL.toFixed(2) + "\n" +
+      "◍ MENGESAN TEPI (penapis Sobel 3×3)\n" +
+      "  · " + tepiKuat + " titik tepi kuat → kontur utama dijumpai\n" +
+      "◍ MENGIRA SILUET & LITUPAN\n" +
+      "  · objek melitupi " + (100*isi/(N*N)).toFixed(1) + "% bingkai\n" +
+      "◍ MENGAMBIL PALET WARNA (kuantiti warna dominan)\n" +
+      "  · " + palet.join("  ") + "\n" +
+      "◍ MENGESAN SIMETRI\n" +
+      "  · menegak: " + (simV*100).toFixed(0) + "% · mendatar: " + (simH*100).toFixed(0) + "%\n" +
+      "◍ MEMBINA GEOMETRI 3D PROSEDUR…\n" +
+      "  · ketinggian dijana daripada luminans + penapis lembut (Gaussian kasar)\n" +
+      "  · tekstur warna diambil terus dari gambar sumber\n" +
+      "✔ SIAP — 5 bentuk 3D dicadangkan, pilih & laraskan param sebelum letak"
+  };
+}
+
+function binaDariGambar(analisis){
+  const N = analisis.N;
+  const g = new THREE.Group();
+  const sc = AI.skala, ked = AI.kedalaman;
+
+  // tekstur warna dari gambar asal
+  const tex = new THREE.CanvasTexture(gambarSumber || canvasKecil(64));
+  tex.encoding = THREE.sRGBEncoding;
+
+  function lembut(x,y){
+    let s = 0, w = 0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      const xx = x+dx, yy = y+dy;
+      if(xx<0||yy<0||xx>=N||yy>=N) continue;
+      const k = (dx===0&&dy===0) ? (1+AI.lembut*4) : 1;
+      s += analisis.lum[yy*N+xx]*k; w += k;
+    }
+    return s/w;
+  }
+
+  if(AI.bentuk === "relief"){
+    const geo = new THREE.PlaneGeometry(sc, sc, N-1, N-1);
+    geo.rotateX(-Math.PI/2);
+    const pos = geo.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const x = i % N, y = Math.floor(i/N);
+      pos.setY(i, lembut(x,y)*ked);
+    }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:0.6, metalness:0.15}));
+    g.add(m);
+  } else if(AI.bentuk === "siluet"){
+    // ekstrusi voxel lajur: gabung semua blok jadi satu geometri
+    const verts = [], norms = [], uvs = [], idx = [];
+    let vi = 0;
+    const s = sc/N;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      if(!analisis.mask[y*N+x]) continue;
+      const h = Math.max(0.25, lembut(x,y))*ked;
+      const x0 = (x-N/2)*s, z0 = (y-N/2)*s, x1 = x0+s, z1 = z0+s;
+      // 6 muka blok (ringkas: atas + 4 sisi)
+      const faces = [
+        [[x0,h,z0],[x1,h,z0],[x1,h,z1],[x0,h,z1]],                 // atas
+        [[x0,0,z1],[x1,0,z1],[x1,h,z1],[x0,h,z1]],                 // depan
+        [[x1,0,z0],[x0,0,z0],[x0,h,z0],[x1,h,z0]],                 // belakang
+        [[x0,0,z0],[x0,0,z1],[x0,h,z1],[x0,h,z0]],                 // kiri
+        [[x1,0,z1],[x1,0,z0],[x1,h,z0],[x1,h,z1]]                  // kanan
+      ];
+      for(const f of faces){
+        for(let k=0;k<4;k++){
+          verts.push(f[k][0], f[k][1], f[k][2]);
+          norms.push(0,1,0);
+          uvs.push((x+k%2)/N, (y+(k>>1))/N);
+        }
+        idx.push(vi, vi+1, vi+2, vi, vi+2, vi+3);
+        vi += 4;
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(verts),3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(norms),3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(uvs),2));
+    geo.setIndex(idx);
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:0.55}));
+    g.add(m);
+  } else if(AI.bentuk === "lathe"){
+    // putarkan profil purata luminans → pasu/objek putaran
+    const titik = [];
+    for(let y=0;y<N;y++){
+      let s2 = 0;
+      for(let x=0;x<N;x++) s2 += analisis.lum[y*N+x];
+      titik.push(new THREE.Vector2(Math.max(0.05, (s2/N)*sc*0.5), (y/N)*ked*1.4));
+    }
+    const m = new THREE.Mesh(new THREE.LatheGeometry(titik, Math.round(AI.segmen)),
+      new THREE.MeshStandardMaterial({map:tex, roughness:0.4, metalness:0.3}));
+    g.add(m);
+  } else if(AI.bentuk === "voxel"){
+    const s = sc/N;
+    const geo = new THREE.BoxGeometry(s*0.92, s*0.92, s*0.92);
+    const mat = new THREE.MeshStandardMaterial({vertexColors:false, roughness:0.5, metalness:0.25});
+    const senarai = [];
+    for(let y=0;y<N;y+=2) for(let x=0;x<N;x+=2){
+      const l = analisis.lum[y*N+x];
+      if(l < AI.ambang*0.6) continue;
+      const tinggi = Math.round(1 + l*4*(0.5+AI.kedalaman*0.12));
+      for(let zz=0; zz<tinggi; zz++) senarai.push([x,y,zz,l]);
+    }
+    const inst = new THREE.InstancedMesh(geo, mat, Math.max(1, senarai.length));
+    const m4 = new THREE.Matrix4(), kol = new THREE.Color();
+    senarai.forEach(function(q, i){
+      m4.makeTranslation((q[0]-N/2)*s, q[2]*s+s/2, (q[1]-N/2)*s);
+      inst.setMatrixAt(i, m4);
+      kol.setHSL(0.55 + q[3]*0.35, 0.65, 0.5+q[3]*0.25);
+      inst.setColorAt(i, kol);
+    });
+    inst.instanceMatrix.needsUpdate = true;
+    if(inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    g.add(inst);
+  } else { // "puncak" — radial heightfield
+    const geo = new THREE.CircleGeometry(sc*0.5, Math.round(AI.segmen), 0, Math.PI*2);
+    geo.rotateX(-Math.PI/2);
+    const pos = geo.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const x = pos.getX(i)/(sc*0.5)*0.5+0.5, z = pos.getZ(i)/(sc*0.5)*0.5+0.5;
+      const xi = Math.min(N-1, Math.max(0, Math.round(x*(N-1))));
+      const zi = Math.min(N-1, Math.max(0, Math.round(z*(N-1))));
+      pos.setY(i, analisis.lum[zi*N+xi]*ked);
+    }
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:0.5}));
+    g.add(m);
+  }
+  g.traverse(function(o){ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  g.userData.deskriptor = {
+    sumber:"ai", bentuk:AI.bentuk,
+    ai:JSON.parse(JSON.stringify(AI)),
+    gambar:(gambarSumber && gambarSumber.toDataURL) ? gambarSumber.toDataURL("image/png") : null
+  };
+  return g;
+}
+
+// ============================ UI PANEL ====================================
+const PNL = G.panel;
+PNL.group("🏗️ PEMBINA ASET PARAMETRIK (NURBS-style)");
+PNL.select({label:"Jenis aset", key:"jenis", obj:P,
+  options:Object.keys(JENIS).map(function(k){ return [k, JENIS[k].nama]; }),
+  onChange:function(){ pratinjau(); }});
+PNL.slider({label:"Tinggi", key:"tinggi", min:0.5, max:24, step:0.1, obj:P, onChange:pratinjau});
+PNL.slider({label:"Lebar / radius", key:"lebar", min:0.2, max:10, step:0.1, obj:P, onChange:pratinjau});
+PNL.slider({label:"Segmen / detail", key:"segmen", min:3, max:64, step:1, obj:P, onChange:pratinjau});
+PNL.slider({label:"Pintalan (twist)", key:"twist", min:-6, max:6, step:0.1, obj:P, onChange:pratinjau});
+PNL.slider({label:"Tirusan (taper)", key:"taper", min:0, max:1.5, step:0.05, obj:P, onChange:pratinjau});
+PNL.slider({label:"Ketebalan", key:"tebal", min:0.05, max:3, step:0.05, obj:P, onChange:pratinjau});
+PNL.slider({label:"Warna (0-360 hue)", key:"hue", min:0, max:360, step:1, obj:{hue:200}, onChange:function(v){
+  warnaBaru(new THREE.Color().setHSL(v/360, 0.6, 0.6).getHex()); pratinjau();
+}});
+PNL.button({label:"🎲 Aset rawak", onClick:function(){
+  const keys = Object.keys(JENIS);
+  P.jenis = keys[Math.floor(Math.random()*keys.length)];
+  P.tinggi = 2+Math.random()*14; P.lebar = 0.8+Math.random()*5;
+  P.segmen = 8+Math.floor(Math.random()*40); P.twist = (Math.random()-0.5)*8;
+  P.taper = Math.random(); P.tebal = 0.1+Math.random()*1.4;
+  PNL.sync(); pratinjau();
+}});
+PNL.button({label:"✔ Bina & letak ke dunia", onClick:function(){
+  const obj = binaAset();
+  letakDiDunia(obj);
+}});
+PNL.button({label:"👁 Tunjang / sembunyi pratinjau", onClick:function(){
+  if(pratinjauObj){ pratinjauObj.visible = !pratinjauObj.visible; }
+}});
+
+PNL.group("🤖 MESIN AI-PROSEDUR — GAMBAR RUJUKAN → 3D");
+const infoAI = document.createElement("div");
+infoAI.style.cssText = "font:10px 'Courier New',monospace;color:#9fd8ff;background:rgba(10,40,60,.5);"+
+  "border:1px dashed #2b6f8e;border-radius:4px;padding:8px;margin:8px 0;white-space:pre-wrap;line-height:1.6;";
+infoAI.textContent = "Muat naik gambar (atau pilih gambar contoh), tekan «Analisis & jana 3D».\n"+
+  "Mesin ini prosedur 100% luar talian: ia membaca piksel, mengesan tepi,\n"+
+  "mengambil palet & simetri, lalu merakit model 3D berparameter.";
+PNL.body.appendChild(infoAI);
+
+const rowFile = document.createElement("div"); rowFile.className = "row";
+const fileInp = document.createElement("input");
+fileInp.type = "file"; fileInp.accept = "image/*";
+fileInp.style.cssText = "width:100%;font:10px 'Courier New',monospace;color:#4dff88;";
+rowFile.appendChild(fileInp);
+PNL.body.appendChild(rowFile);
+
+let presetPilih = "rumah";
+(function(){
+  const row = document.createElement("div"); row.className = "row";
+  const lab = document.createElement("label");
+  lab.innerHTML = "<span>Gambar contoh terbina-dalam</span>";
+  const sel = document.createElement("select");
+  [["rumah","contoh: rumah lukisan"],["vas","contoh: vas"],["rodaGigi","contoh: roda gigi"],["bintang","contoh: bintang"]].forEach(function(o){
+    const op = document.createElement("option"); op.value = o[0]; op.textContent = o[1];
+    sel.appendChild(op);
+  });
+  sel.addEventListener("change", function(){ presetPilih = sel.value; });
+  row.appendChild(lab); row.appendChild(sel); PNL.body.appendChild(row);
+})();
+PNL.select({label:"Bentuk 3D yang dijana", key:"bentuk", obj:AI,
+  options:[["relief","Relief ketinggian (luminans → permukaan)"],
+           ["siluet","Siluet ekstrusi (kontur → blok 3D)"],
+           ["lathe","Putaran lathe (profil → pasu)"],
+           ["voxel","Voxel blok (grid → binaan)"],
+           ["puncak","Puncak radial (cermin → kubah)"]],
+  onChange:function(){}});
+PNL.slider({label:"Kedalaman 3D", key:"kedalaman", min:0.5, max:20, step:0.1, obj:AI});
+PNL.slider({label:"Ambang siluet", key:"ambang", min:0.05, max:0.95, step:0.01, obj:AI});
+PNL.slider({label:"Kelembutan", key:"lembut", min:0, max:2, step:0.05, obj:AI});
+PNL.slider({label:"Skala hasil", key:"skala", min:2, max:30, step:0.5, obj:AI});
+PNL.slider({label:"Segmen putaran", key:"segmen", min:6, max:64, step:1, obj:AI});
+
+let imejAnalisis = null;
+function jalankanAnalisis(sumber){
+  gambarSumber = sumber;
+  imejAnalisis = analisisGambar(sumber);
+  infoAI.textContent = imejAnalisis.laporan;
+  const obj = binaDariGambar(imejAnalisis);
+  letakDiDunia(obj);
+}
+PNL.button({label:"🧠 Analisis gambar & jana 3D", onClick:function(){
+  if(fileInp.files && fileInp.files[0]){
+    const rd = new FileReader();
+    rd.onload = function(){
+      const img = new Image();
+      img.onload = function(){
+        const c = canvasKecil(64);
+        c.getContext("2d").drawImage(img, 0, 0, 64, 64);
+        jalankanAnalisis(c);
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(fileInp.files[0]);
+  } else {
+    jalankanAnalisis(gambarPreset("rumah"));
+  }
+}});
+PNL.button({label:"🖼 Guna gambar contoh sahaja", onClick:function(){
+  jalankanAnalisis(gambarPreset(presetPilih));
+}});
+PNL.button({label:"✔ Letak hasil AI ke dunia", onClick:function(){
+  if(!imejAnalisis){ infoAI.textContent = "⚠ Jalankan analisis dahulu."; return; }
+  letakDiDunia(binaDariGambar(imejAnalisis));
+}});
+
+// ============================ PRATINJAU LANGSUNG =========================
+let pratinjauObj = null;
+function pratinjau(){
+  if(pratinjauObj){ scene.remove(pratinjauObj); }
+  pratinjauObj = binaAset();
+  const p = G.player.pos;
+  const fwd = new THREE.Vector3(-Math.sin(G.player.yaw), 0, -Math.cos(G.player.yaw));
+  const x = p.x + fwd.x*9, z = p.z + fwd.z*9;
+  const y = (G.groundHeight ? G.groundHeight(x, z) : 0) + 2.2;
+  pratinjauObj.position.set(x, y, z);
+  scene.add(pratinjauObj);
+}
+G.updates.push(function(dt, t){
+  if(pratinjauObj && pratinjauObj.visible){
+    pratinjauObj.rotation.y += dt*0.5;
+    pratinjauObj.position.y += Math.sin(t*1.4)*0.006;
+  }
+});
+pratinjau();
+
+// API untuk plugin & modul lain
+G.assetgen = {JENIS: JENIS, P: P, binaAset: binaAset, binaDariGambar: binaDariGambar,
+  letakDiDunia: letakDiDunia, analisisGambar: analisisGambar, gambarPreset: gambarPreset,
+  tambahJenis: function(kode, nama, fn){ JENIS[kode] = {nama:nama, buat:fn}; }};
+})();
+
+</script>
+
+<script>
+/* ==== 50-ugc.js ==== */
+/* ============================================================================
+   50-ugc.js — SANDBOX UGC: BINA · DUNIA/SERVER · PLUGIN · FIZIK
+   ----------------------------------------------------------------------------
+   Konsep: Roblox + Minecraft + Grasshopper dalam satu — apa-apa yang dibina
+   jadi hasil sebenar dalam dunia tanpa batas.
+   · Editor: letak, padam, pusing, skala objek (papan kekunci + panel).
+   · Dunia/server tanpa had: simpan/muat/muat naik/muat turun sebagai JSON.
+   · Plugin: JavaScript (sandbox fungsi) DAN mana-mana bahasa lain yang
+     dikompil ke WebAssembly (kontrak eksport: height(x,z)->f64).
+   · Fizik: graviti + lantunan mudah untuk objek yang dibina.
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME, THREE = G.THREE, scene = G.scene;
+
+// ============================ SENARAI OBJEK DUNIA =========================
+const objek = [];              // semua objek yang dibina pemain
+let objekSasaran = null;       // objek yang sedang disasarkan (untuk edit)
+const statusBina = document.createElement("div");
+statusBina.style.cssText = "position:fixed;right:16px;bottom:52px;z-index:35;display:none;max-width:320px;"+
+  "background:rgba(6,28,20,.85);border:2px solid #4dff88;border-radius:6px;padding:10px 12px;"+
+  "font:11px 'Courier New',monospace;color:#4dff88;line-height:1.7;";
+document.body.appendChild(statusBina);
+
+function refreshStatus(){
+  if(!modBina){
+    statusBina.style.display = "none";
+    return;
+  }
+  statusBina.style.display = "block";
+  statusBina.innerHTML =
+    "<b>MOD BINA AKTIF</b> · objek dalam dunia: " + objek.length + "<br>" +
+    "<b>[E]</b> letak aset di sasaran &nbsp; <b>[X]</b> padam objek disasarkan<br>" +
+    "<b>[Q]</b> pusing objek &nbsp; <b>[Z]</b> skala besar &nbsp; <b>[N]</b> skala kecil<br>" +
+    "Sasaran: " + (objekSasaran ? (objekSasaran.name || "objek") : "— (halakan pandangan ke objek)");
+}
+
+// ============================ SASARAN (raycast ringan) ====================
+function titikSasaran(){
+  // berjalan di sepanjang ray kamera sehingga jatuh bawah rupa bumi
+  const dir = new THREE.Vector3();
+  G.camera.getWorldDirection(dir);
+  const p = G.camera.position.clone();
+  for(let i=0;i<70;i++){
+    p.addScaledVector(dir, 2.2);
+    const gh = G.groundHeight ? G.groundHeight(p.x, p.z) : 0;
+    if(p.y <= gh + 0.2) return p;
+  }
+  return p;
+}
+function cariObjekSasaran(){
+  const dir = new THREE.Vector3();
+  G.camera.getWorldDirection(dir);
+  const p = G.camera.position;
+  let terbaik = null, jarakTerbaik = 14;  // unit
+  for(const o of objek){
+    const v = o.position.clone().sub(p);
+    const proj = v.dot(dir);
+    if(proj < 2 || proj > 70) continue;
+    const tepi = v.sub(dir.clone().multiplyScalar(proj)).length();
+    const anggar = 4 * (o.scale ? o.scale.x : 1);
+    if(tepi < Math.max(2.5, anggar) && proj < jarakTerbaik + 4){
+      terbaik = o; jarakTerbaik = proj;
+    }
+  }
+  objekSasaran = terbaik;
+}
+
+// ============================ API UGC =====================================
+G.ugc = {
+  objek: objek,
+  tambah: function(obj, deskriptor){
+    if(deskriptor) obj.userData.deskriptor = deskriptor;
+    if(!obj.userData.deskriptor) obj.userData.deskriptor = {sumber:"param", jenis:(G.assetgen && G.assetgen.P.jenis)||"tabung"};
+    objek.push(obj);
+    scene.add(obj);
+    refreshStatus();
+    return obj;
+  },
+  padam: function(obj){
+    const i = objek.indexOf(obj);
+    if(i >= 0) objek.splice(i, 1);
+    scene.remove(obj);
+    if(objekSasaran === obj) objekSasaran = null;
+    refreshStatus();
+  },
+  bersih: function(){
+    while(objek.length){ scene.remove(objek.pop()); }
+    objekSasaran = null;
+    refreshStatus();
+  },
+  sasaran: function(){ return objekSasaran; },
+  refresh: refreshStatus
+};
+
+// ============================ MOD BINA + KAWALAN ==========================
+let modBina = false;
+function setModBina(v){
+  modBina = v;
+  refreshStatus();
+}
+window.addEventListener("keydown", function(e){
+  if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
+  if(G.fractal && G.fractal.getTerbuka()) return;   // jangan ganggu mod fraktal
+  if(e.code === "KeyB"){ setModBina(!modBina); }
+  if(!modBina) return;
+  if(e.code === "KeyE"){
+    const titik = titikSasaran();
+    const jenis = (G.assetgen && G.assetgen.P.jenis) || "tabung";
+    const obj = G.assetgen ? G.assetgen.binaAset() : new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshStandardMaterial());
+    obj.position.copy(titik);
+    obj.position.y = Math.max(obj.position.y, (G.groundHeight ? G.groundHeight(titik.x, titik.z) : 0));
+    obj.name = "binaan-" + (objek.length+1);
+    G.ugc.tambah(obj, {sumber:"param", jenis:jenis, P: G.assetgen ? JSON.parse(JSON.stringify(G.assetgen.P)) : null});
+  }
+  if(e.code === "KeyX" && objekSasaran){ G.ugc.padam(objekSasaran); }
+  if(e.code === "KeyQ" && objekSasaran){ objekSasaran.rotation.y += Math.PI/12; }
+  if(e.code === "KeyZ" && objekSasaran){ objekSasaran.scale.multiplyScalar(1.15); }
+  if(e.code === "KeyN" && objekSasaran){ objekSasaran.scale.multiplyScalar(1/1.15); }
+});
+
+// ============================ FIZIK MUDAH =================================
+const fizik = {aktif:false, graviti:12, lantunan:0.42};
+function updateFizik(dt){
+  if(!fizik.aktif) return;
+  for(const o of objek){
+    if(o.userData.tanah) continue;
+    if(o.userData.vy === undefined){
+      o.userData.vy = 0;
+      const box = new THREE.Box3().setFromObject(o);
+      o.userData.tinggiObj = Math.max(0.5, box.max.y - box.min.y);
+    }
+    o.userData.vy -= fizik.graviti*dt;
+    o.position.y += o.userData.vy*dt;
+    const gh = G.groundHeight ? G.groundHeight(o.position.x, o.position.z) : 0;
+    const lantai = gh + (o.userData.tinggiObj||2)*0.5;
+    if(o.position.y <= lantai){
+      o.position.y = lantai;
+      if(Math.abs(o.userData.vy) < 1.2){ o.userData.vy = 0; o.userData.tanah = true; }
+      else o.userData.vy = -o.userData.vy * fizik.lantunan;
+    }
+  }
+}
+G.updates.push(updateFizik);
+G.updates.push(function(dt, t){
+  if(modBina){
+    cariObjekSasaran();
+    refreshStatus();
+  }
+});
+
+// ============================ DUNIA / SERVER ==============================
+// simpanan: localStorage "165worlds" = { namaDunia: {...} }
+const BENDA_KEY = "165worlds";
+function muatSemuaDunia(){
+  try{ return JSON.parse(localStorage.getItem(BENDA_KEY) || "{}"); }
+  catch(e){ return {}; }
+}
+function simpanDunia(nama, data){
+  const semua = muatSemuaDunia();
+  semua[nama] = data;
+  try{ localStorage.setItem(BENDA_KEY, JSON.stringify(semua)); }
+  catch(e){ alert("Gagal simpan (storan penuh?): " + e.message); }
+  isiSenaraiDunia();
+}
+function serialisasiDunia(){
+  return {
+    versi: 1,
+    seed: (G.duniaSeed !== undefined ? G.duniaSeed : 165),
+    masa: Date.now(),
+    objek: objek.map(function(o){
+      return {
+        d: o.userData.deskriptor,
+        pos: [o.position.x, o.position.y, o.position.z],
+        rot: [o.rotation.x, o.rotation.y, o.rotation.z],
+        skala: [o.scale.x, o.scale.y, o.scale.z],
+        nama: o.name
+      };
+    })
+  };
+}
+function binaSemulaObjek(rec){
+  let obj = null;
+  if(rec.d && rec.d.sumber === "ai" && G.assetgen && rec.d.gambar){
+    // bina semula aset AI dari gambar sumber
+    const img = new Image();
+    img.onload = function(){
+      const c = document.createElement("canvas"); c.width = c.height = 64;
+      c.getContext("2d").drawImage(img, 0, 0, 64, 64);
+      const analisis = G.assetgen.analisisGambar(c);
+      const o2 = G.assetgen.binaDariGambar(analisis);
+      pasang(o2);
+    };
+    img.src = rec.d.gambar;
+    return;
+  } else if(G.assetgen && rec.d && rec.d.P){
+    const P = G.assetgen.P;
+    const lama = {jenis:P.jenis, tinggi:P.tinggi, lebar:P.lebar, segmen:P.segmen, twist:P.twist, taper:P.taper, tebal:P.tebal};
+    Object.assign(P, rec.d.P);
+    obj = G.assetgen.binaAset();
+    Object.assign(P, lama);
+  } else {
+    obj = new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshStandardMaterial({color:0x8fd3ff}));
+  }
+  pasang(obj);
+  function pasang(o){
+    o.position.set(rec.pos[0], rec.pos[1], rec.pos[2]);
+    o.rotation.set(rec.rot[0], rec.rot[1], rec.rot[2]);
+    o.scale.set(rec.skala[0], rec.skala[1], rec.skala[2]);
+    o.name = rec.nama || "";
+    G.ugc.tambah(o, rec.d || null);
+  }
+}
+function muatDunia(nama){
+  const semua = muatSemuaDunia();
+  const d = semua[nama];
+  if(!d) return;
+  G.ugc.bersih();
+  (d.objek||[]).forEach(binaSemulaObjek);
+  refreshStatus();
+}
+
+// UI panel dunia
+const PNL = G.panel;
+PNL.group("🌍 DUNIA / SERVER (tanpa had)");
+const namaDuniaInp = document.createElement("input");
+namaDuniaInp.type = "text";
+namaDuniaInp.placeholder = "nama dunia / server…";
+namaDuniaInp.value = "Dunia Pertamaku";
+namaDuniaInp.style.cssText = "width:100%;background:#0c3246;color:#4dff88;border:1px solid #2b6f8e;"+
+  "border-radius:3px;font-family:inherit;font-size:11px;padding:5px;margin:6px 0;";
+PNL.body.appendChild(namaDuniaInp);
+
+const rowSel = document.createElement("div"); rowSel.className = "row";
+const lblSel = document.createElement("label"); lblSel.innerHTML = "<span>Dunia tersimpan</span>";
+const selDunia = document.createElement("select");
+selDunia.style.cssText = "width:100%;background:#0c3246;color:#66e0ff;border:1px solid #2b6f8e;border-radius:3px;font-family:inherit;padding:3px;";
+rowSel.appendChild(lblSel); rowSel.appendChild(selDunia);
+PNL.body.appendChild(rowSel);
+function isiSenaraiDunia(){
+  const semua = muatSemuaDunia();
+  selDunia.innerHTML = "";
+  Object.keys(semua).forEach(function(n){
+    const op = document.createElement("option"); op.value = n; op.textContent = n;
+    selDunia.appendChild(op);
+  });
+}
+isiSenaraiDunia();
+
+PNL.button({label:"💾 Simpan dunia semasa", onClick:function(){
+  simpanDunia(namaDuniaInp.value || "tanpa-nama", serialisasiDunia());
+}});
+PNL.button({label:"📂 Muat dunia terpilih", onClick:function(){
+  if(selDunia.value){ namaDuniaInp.value = selDunia.value; muatDunia(selDunia.value); }
+}});
+PNL.button({label:"🗑 Padam dunia terpilih", onClick:function(){
+  if(!selDunia.value) return;
+  const semua = muatSemuaDunia();
+  delete semua[selDunia.value];
+  localStorage.setItem(BENDA_KEY, JSON.stringify(semua));
+  isiSenaraiDunia();
+}});
+PNL.button({label:"⤓ Eksport dunia (fail JSON)", onClick:function(){
+  const blob = new Blob([JSON.stringify(serialisasiDunia(), null, 1)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (namaDuniaInp.value || "dunia") + ".165world.json";
+  a.click();
+}});
+const rowImp = document.createElement("div"); rowImp.className = "row";
+const impInp = document.createElement("input");
+impInp.type = "file"; impInp.accept = ".json,application/json";
+impInp.style.cssText = "width:100%;font:10px 'Courier New',monospace;color:#4dff88;";
+impInp.addEventListener("change", function(){
+  if(!impInp.files[0]) return;
+  const rd = new FileReader();
+  rd.onload = function(){
+    try{
+      const d = JSON.parse(rd.result);
+      G.ugc.bersih();
+      (d.objek||[]).forEach(binaSemulaObjek);
+      refreshStatus();
+    }catch(err){ alert("Fail JSON tidak sah: " + err.message); }
+  };
+  rd.readAsText(impInp.files[0]);
+});
+rowImp.appendChild(impInp);
+PNL.body.appendChild(rowImp);
+
+// UI fizik + mod bina
+PNL.group("⚙ FIZIK & MOD BINA");
+PNL.check({label:"Mod bina (B) — E letak · X padam · Q pusing", key:"modBina", obj:{modBina:false},
+  onChange:setModBina});
+PNL.check({label:"Fizik: graviti & lantunan", key:"aktif", obj:fizik, onChange:function(){}});
+PNL.slider({label:"Graviti", key:"graviti", min:1, max:40, step:0.5, obj:fizik});
+PNL.slider({label:"Lantunan", key:"lantunan", min:0, max:0.95, step:0.01, obj:fizik});
+
+// ============================ SISTEM PLUGIN ===============================
+// API untuk plugin: JavaScript (sandbox fungsi) atau WebAssembly (mana-mana bahasa)
+const API_PLUGIN = {
+  registerAssetType: function(kode, nama, fn){
+    if(G.assetgen) G.assetgen.tambahJenis(kode, nama, fn);
+  },
+  registerFormula: function(kunci, nama, fn){
+    if(G.MATEMATIKA) G.MATEMATIKA[kunci] = {nama:nama, fn:fn};
+  },
+  registerMission: function(misi){
+    if(G.missions && G.missions.tambah) G.missions.tambah(misi);
+    else (G._pendingMissions = G._pendingMissions || []).push(misi);
+  },
+  registerPalette: function(nama, stops){
+    if(G.fractal && G.fractal.tambahPalet) G.fractal.tambahPalet(nama, stops);
+  },
+  place: function(mesh){ return G.ugc.tambah(mesh); },
+  notify: function(teks){ infoPlugin.textContent = teks; },
+  G: G
+};
+G.plugins = {
+  api: API_PLUGIN,
+  jalankan: function(kod){
+    try{
+      const fn = new Function("api", "G", kod);
+      fn(API_PLUGIN, G);
+      G._pluginRan = true;
+      infoPlugin.textContent = "✔ Plugin berjaya dimuat (" + kod.length + " aksara).";
+    }catch(e){
+      infoPlugin.textContent = "✘ Ralat plugin: " + e.message;
+    }
+  },
+  muatWasm: function(buffer, nama){
+    // kontrak WebAssembly (mana-mana bahasa): export height(x: f64, z: f64) -> f64
+    return WebAssembly.instantiate(buffer, {env:{}}).then(function(h){
+      const exp = h.instance.exports;
+      if(typeof exp.height === "function"){
+        const asal = G.groundHeight || function(){ return 0; };
+        G.groundHeight = function(x, z){ return asal(x, z) + exp.height(x, z); };
+        infoPlugin.textContent = "✔ Plugin WASM «"+nama+"» aktif — height(x,z) dipasang ke rupa bumi.";
+      } else {
+        infoPlugin.textContent = "⚠ WASM «"+nama+"» tiada eksport height(x,z). Kontrak: height(x:f64,z:f64)->f64.";
+      }
+    }).catch(function(e){ infoPlugin.textContent = "✘ WASG ralat: " + e.message; });
+  }
+};
+
+PNL.group("🧩 PLUGIN (JavaScript / WebAssembly)");
+const infoPlugin = document.createElement("div");
+infoPlugin.style.cssText = "font:10px 'Courier New',monospace;color:#9fd8ff;background:rgba(10,40,60,.5);"+
+  "border:1px dashed #2b6f8e;border-radius:4px;padding:8px;margin:8px 0;white-space:pre-wrap;line-height:1.65;";
+infoPlugin.textContent = "Plugin = kod tambahan yang mengembangkan game.\n"+
+  "· JavaScript: tampal kod → «Jalankan plugin» (API: api.registerFormula/AssetType/Mission/Palette)\n"+
+  "· Mana-mana bahasa (C, Rust, Go, Zig…): kompil ke .wasm dengan eksport height(x,z)->f64 → «Muat plugin .wasm».\n"+
+  "Semua luar talian — game ini enjin mandiri.";
+PNL.body.appendChild(infoPlugin);
+
+const kotakKod = document.createElement("textarea");
+kotakKod.rows = 7;
+kotakKod.style.cssText = "width:100%;background:#071c28;color:#4dff88;border:1px solid #2b6f8e;"+
+  "border-radius:3px;font:10px 'Courier New',monospace;padding:6px;";
+kotakKod.value =
+"// contoh plugin: daftar bentuk baharu\n" +
+"api.registerAssetType('bolaAjaib','Bola ajaib plugin', function(P){\n" +
+"  const THREE = G.THREE;\n" +
+"  const g = new THREE.Group();\n" +
+"  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(P.lebar, 2),\n" +
+"    new THREE.MeshStandardMaterial({color:0xff66cc, metalness:0.7, roughness:0.2}));\n" +
+"  m.position.y = P.lebar;\n" +
+"  g.add(m);\n" +
+"  return g;\n" +
+"});\n" +
+"api.notify('Plugin contoh siap — cuba pilih \"Bola ajaib plugin\" di panel aset.');";
+PNL.body.appendChild(kotakKod);
+
+PNL.button({label:"▶ Jalankan plugin (JavaScript)", onClick:function(){
+  G.plugins.jalankan(kotakKod.value);
+}});
+PNL.button({label:"📋 Muat contoh plugin lain", onClick:function(){
+  kotakKod.value =
+    "// contoh 2: formula matematika + misi baharu\n" +
+    "api.registerFormula('gelombangAneh','Gelombang Aneh (plugin)', function(u,v,p){\n" +
+    "  const x=(u-0.5)*p.ukuran*3, z=(v-0.5)*p.ukuran*3;\n" +
+    "  return [x, Math.sin(x*p.frekuensi)*Math.cos(z*p.frekuensi*1.7)*p.amplitudo*p.ukuran, z];\n" +
+    "});\n" +
+    "api.registerMission({judul:'Uji plugin', petunjuk:'Pilih formula \"Gelombang Aneh\".',\n" +
+    "  semak:function(G){ return G.getBentuk()==='gelombangAneh'; }, ganjaran:'Plugin Master'});\n" +
+    "api.notify('Plugin 2 dimuat: formula \"Gelombang Aneh\" + 1 misi baharu.');";
+}});
+const rowWasm = document.createElement("div"); rowWasm.className = "row";
+const wasmInp = document.createElement("input");
+wasmInp.type = "file"; wasmInp.accept = ".wasm,application/wasm";
+wasmInp.style.cssText = "width:100%;font:10px 'Courier New',monospace;color:#4dff88;";
+wasmInp.addEventListener("change", function(){
+  if(!wasmInp.files[0]) return;
+  wasmInp.files[0].arrayBuffer().then(function(buf){ G.plugins.muatWasm(buf, wasmInp.files[0].name); });
+});
+rowWasm.appendChild(wasmInp);
+PNL.body.appendChild(rowWasm);
+
+refreshStatus();
+})();
+
+</script>
+
+<script>
+/* ==== 60-adventure.js ==== */
+/* ============================================================================
+   60-adventure.js — PENGEMBARAN MATEMATIKA (semua umur)
+   ----------------------------------------------------------------------------
+   Misi bertingkat: Mudah (kanak-kanak) → Sederhana → Sukar → Pakar.
+   Setiap misi ada petunjuk + penjelasan matematik sebenar (belajar sambil main).
+   Termasuk kuiz berpilihan dengan jawapan + huraian.
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME;
+
+// ============================ PENDAFTARAN MISI ===========================
+const senaraiMisi = [];
+const selesai = (function(){
+  try{ return JSON.parse(localStorage.getItem("165misi") || "{}"); }
+  catch(e){ return {}; }
+})();
+function simpanSelesai(){ try{ localStorage.setItem("165misi", JSON.stringify(selesai)); }catch(e){} }
+
+G.missions = {
+  tambah: function(m){ senaraiMisi.push(m); isiPilihan(); },
+  senarai: senaraiMisi
+};
+// plugin yang mendaftar misi sebelum modul ini dimuat
+(G._pendingMissions || []).forEach(function(m){ senaraiMisi.push(m); });
+
+// ============================ MISI TERBINA-DALAM =========================
+function jarakDariPusat(){
+  const p = G.player.pos;
+  return Math.sqrt(p.x*p.x + p.z*p.z);
+}
+const MISI = [
+  // ---------- MUDAH (kanak-kanak / baru kenal) ----------
+  {judul:"👣 Langkah Pertama", tier:"Mudah",
+   petunjuk:"Berjalanlah sekurang-kurangnya 100 unit dari titik mula (gunakan W A S D).",
+   penjelasan:"Jarak = punca kuasa dua (x² + z²). Ini teorem Pythagoras — a² + b² = c²!",
+   semak:function(){ return jarakDariPusat() > 100; }},
+  {judul:"🏠 Bina Rumah Pertama", tier:"Mudah",
+   petunjuk:"Buka panel «Pembina Aset», pilih «Rumah kecil», tekan «Bina & letak ke dunia».",
+   penjelasan:"Rumah = kubus + piramid. Kubus ada 6 muka, 12 rusuk, 8 bucu — cuba kira!",
+   semak:function(){
+     return G.ugc.objek.some(function(o){ return o.userData.deskriptor && o.userData.deskriptor.jenis === "rumah"; });
+   }},
+  {judul:"🌙 Tukar ke Malam", tier:"Mudah",
+   petunjuk:"Geser slider «Waktu (malam↔siang)» ke bawah 0.3.",
+   penjelasan:"Cahaya matahari bergerak kerana Bumi berputar — 1 pusingan = 24 jam = 360 darjah.",
+   semak:function(){ return G.dunia && G.dunia.waktu < 0.3; }},
+  {judul:"🎲 Dunia Baharu", tier:"Mudah",
+   petunjuk:"Tekan butang «🎲 Dunia baru (rawak seed)» di panel dunia.",
+   penjelasan:"'Seed' nombor benih: nombor sama = dunia sama. Komputer guna matematik untuk rawak!",
+   semak:function(){ return G.dunia && G.dunia.seed !== 165; }},
+
+  // ---------- SEDERHANA ----------
+  {judul:"🌀 Pembina Parametrik", tier:"Sederhana",
+   petunjuk:"Bina aset dengan slider «Pintalan (twist)» bukan 0 — ubah bentuk, letak ke dunia.",
+   penjelasan:"Parametrik = bentuk dikawal parameter. Ini konsep NURBS: lengkung matematik → permukaan 3D.",
+   semak:function(){
+     return G.ugc.objek.some(function(o){
+       const d = o.userData.deskriptor;
+       return d && d.P && Math.abs(d.P.twist) > 0.01;
+     });
+   }},
+  {judul:"🤖 Juruterbang AI Prosedur", tier:"Sederhana",
+   petunjuk:"Gunakan «Mesin AI-Proseder»: analisis gambar contoh, jana 3D, letak ke dunia.",
+   penjelasan:"Mesin ini baca piksel → tepi (Sobel) → siluet → palet. Matematik jadi bentuk!",
+   semak:function(){
+     return G.ugc.objek.some(function(o){ return o.userData.deskriptor && o.userData.deskriptor.sumber === "ai"; });
+   }},
+  {judul:"🔭 Masuk Mod Fraktal", tier:"Sederhana",
+   petunjuk:"Tekan butang «🌀 Mod Fraktal» (atau kekunci F), kemudian zoom dengan tatal tetikus.",
+   penjelasan:"Fraktal = bentuk yang serupa walau berapa kali pun kau zoom. Sifat ini dipanggil self-similarity.",
+   semak:function(){ return G.fractal && G.fractal.zoomExp() >= 5; }},
+  {judul:"🗺️ Jelajah Pinggir Dunia", tier:"Sederhana",
+   petunjuk:"Terbang jauh dari pusat dunia sampai dunia mula berubah (atau guna butang ⚡).",
+   penjelasan:"Di pinggir, ruang berpusing — dalam matematik, koordinat boleh 'berpusing' mengikut fungsi.",
+   semak:function(){ return G.dunia && jarakDariPusat() > G.dunia.batas; }},
+  {judul:"💾 Arkib Dunia", tier:"Sederhana",
+   petunjuk:"Simpan sekurang-kurangnya satu dunia (butang 💾 Simpan dunia semasa).",
+   penjelasan:"Data dunia = senarai koordinat + parameter. Semuanya boleh jadi nombor — itulah dunia digital.",
+   semak:function(){
+     try{ return Object.keys(JSON.parse(localStorage.getItem("165worlds") || "{}")).length > 0; }
+     catch(e){ return false; }
+   }},
+
+  // ---------- SUKAR ----------
+  {judul:"🕳️ Zoom Dalam 10^15", tier:"Sukar",
+   petunjuk:"Dalam mod fraktal, zoom sampai kuasa 10 melebihi 15 (tatal atau butang uji).",
+   penjelasan:"Pada kedalaman ini float64 biasa sudah tidak cukup — enjin guna perturbation + double-double (31 digit)!",
+   semak:function(){ return G.fractal && G.fractal.F.zoomTotal >= 15; }},
+  {judul:"🏗️ Sepuluh Binaan", tier:"Sukar",
+   petunjuk:"Letakkan 10 objek ke dalam dunia (mod bina: tekan B, kemudian E berulang kali).",
+   penjelasan:"Grid & koordinat: setiap objek ada kedudukan (x, y, z) — sistem Cartesian dari Descartes.",
+   semak:function(){ return G.ugc.objek.length >= 10; }},
+  {judul:"🎨 Lima Jenis Aset", tier:"Sukar",
+   petunjuk:"Letakkan 5 jenis aset berbeza (tabung, vas, menara, dll) dalam satu dunia.",
+   penjelasan:"Setiap bentuk ada formula berbeza: silinder = πr²h, bola = 4/3 πr³. Bandingkan!",
+   semak:function(){
+     const set = {};
+     G.ugc.objek.forEach(function(o){
+       const d = o.userData.deskriptor;
+       if(d && d.jenis) set[d.jenis] = 1;
+       else if(d && d.sumber === "ai") set["ai-"+d.bentuk] = 1;
+     });
+     return Object.keys(set).length >= 5;
+   }},
+  {judul:"❓ Kuiz: Nombor Istimewa", tier:"Sukar", kuiz:{
+     soalan:"Berapakah hasil 1 + 1/4 + 1/9 + 1/16 + … (jumlah songsang kuasa dua)?",
+     pilihan:["π²/6","π/2","∞","1"],
+     jawapan:0,
+     penjelasan:"Ini masalah Basel — diselesaikan Euler (1734): ∑1/n² = π²/6 ≈ 1.6449. Nombor π muncul di tempat tak disangka!"}},
+
+  // ---------- PAKAR ----------
+  {judul:"🌌 Zoom Tanpa Hujung 10^40", tier:"Pakar",
+   petunjuk:"Dalam mod fraktal, tekan «🌌 Bukti zoom tanpa hujung: 10^40» dan teruskan meneroka.",
+   penjelasan:"Perturbation theory: orbit rujukan dd + delta piksel. Teknik yang sama dengan rekod dunia zoom Mandelbrot!",
+   semak:function(){ return G.fractal && G.fractal.F.zoomTotal >= 40; }},
+  {judul:"📚 Ahli 1000 Model", tier:"Pakar",
+   petunjuk:"Dalam mod fraktal, pilih model matematik nombor 500 ke atas dari senarai.",
+   penjelasan:"1000 model = gabungan keluarga iterasi (kuasa, konjugat, kapal terbakar…) × mod × titik c. Semuanya matematik sebenar.",
+   semak:function(){ return G.fractal && G.fractal.F.model >= 500; }},
+  {judul:"🧩 Tuan Plugin", tier:"Pakar",
+   petunjuk:"Jalankan sekurang-kurangnya satu plugin JavaScript di panel «Plugin».",
+   penjelasan:"Plugin = program dalam program. Plugin boleh daftar formula, bentuk, misi — ekosistem tanpa hujung.",
+   semak:function(){ return !!G._pluginRan; }},
+  {judul:"❓ Kuiz: Dimensi", tier:"Pakar", kuiz:{
+     soalan:"Berapa bucu ada pada hiperkubus 4D (tesseract)?",
+     pilihan:["8","16","24","32"],
+     jawapan:1,
+     penjelasan:"Kubus 3D = 8 bucu. Setiap +1 dimensi menggandakan bucu: 2ⁿ. Tesseract (4D) = 2⁴ = 16 bucu!"}}
+];
+
+// ============================ UI PANEL ===================================
+const PNL = G.panel;
+PNL.group("🗺️ PENGEMBARAN MATEMATIKA (semua umur)");
+
+const infoMisi = document.createElement("div");
+infoMisi.style.cssText = "font:10.5px 'Courier New',monospace;color:#bfeaff;background:rgba(10,40,60,.5);"+
+  "border:1px dashed #2b6f8e;border-radius:4px;padding:9px;margin:8px 0;white-space:pre-wrap;line-height:1.7;";
+PNL.body.appendChild(infoMisi);
+
+const rowSel = document.createElement("div"); rowSel.className = "row";
+const lblSel = document.createElement("label"); lblSel.innerHTML = "<span>Pilih misi</span>";
+const selMisi = document.createElement("select");
+selMisi.style.cssText = "width:100%;background:#0c3246;color:#66e0ff;border:1px solid #2b6f8e;border-radius:3px;font-family:inherit;padding:3px;";
+rowSel.appendChild(lblSel); rowSel.appendChild(selMisi);
+PNL.body.appendChild(rowSel);
+
+const kuizBox = document.createElement("div");
+kuizBox.style.cssText = "margin:6px 0;";
+PNL.body.appendChild(kuizBox);
+
+function isiPilihan(){
+  if(!selMisi) return;
+  const nilai = selMisi.value;
+  selMisi.innerHTML = "";
+  MISI.forEach(function(m, i){
+    const op = document.createElement("option");
+    op.value = String(i);
+    op.textContent = (selesai[m.judul] ? "✔ " : "") + "[" + m.tier + "] " + m.judul;
+    selMisi.appendChild(op);
+  });
+  senaraiMisi.forEach(function(m, i){
+    const op = document.createElement("option");
+    op.value = "p" + i;
+    op.textContent = (selesai[m.judul] ? "✔ " : "") + "[Plugin] " + m.judul;
+    selMisi.appendChild(op);
+  });
+  if(nilai) selMisi.value = nilai;
+  paparMisi();
+}
+function misiTerpilih(){
+  const v = selMisi.value;
+  if(v && v[0] === "p") return senaraiMisi[parseInt(v.slice(1), 10)];
+  return MISI[parseInt(v || "0", 10)] || MISI[0];
+}
+function paparMisi(){
+  const m = misiTerpilih();
+  if(!m) return;
+  infoMisi.textContent =
+    "MISI: " + m.judul + "   [" + m.tier + "]\n" +
+    "-------------------------------------------\n" +
+    "🎯 " + m.petunjuk + "\n\n" +
+    "📐 " + m.penjelasan + "\n\n" +
+    "Status: " + (selesai[m.judul] ? "✔ SELESAI — ganjaran: " + (m.ganjaran||"Jiwa Pengembara") : "belum selesai");
+  // kuiz?
+  kuizBox.innerHTML = "";
+  if(m.kuiz){
+    const q = document.createElement("div");
+    q.style.cssText = "font:10.5px 'Courier New',monospace;color:#ffe27a;line-height:1.8;";
+    const soal = document.createElement("div");
+    soal.textContent = "❓ " + m.kuiz.soalan;
+    q.appendChild(soal);
+    m.kuiz.pilihan.forEach(function(t, i){
+      const lab = document.createElement("label");
+      lab.style.cssText = "display:flex;gap:6px;align-items:center;cursor:pointer;";
+      const r = document.createElement("input");
+      r.type = "radio"; r.name = "kuiz165"; r.value = String(i);
+      lab.appendChild(r);
+      lab.appendChild(document.createTextNode(t));
+      q.appendChild(lab);
+    });
+    const btn = document.createElement("button");
+    btn.className = "mini";
+    btn.textContent = "Hantar jawapan";
+    btn.style.marginTop = "6px";
+    btn.addEventListener("click", function(){
+      const pilih = q.querySelector("input[name=kuiz165]:checked");
+      const hasil = document.createElement("div");
+      hasil.style.cssText = "margin-top:6px;line-height:1.7;";
+      if(!pilih){ hasil.textContent = "⚠ Pilih satu jawapan dahulu."; }
+      else if(parseInt(pilih.value, 10) === m.kuiz.jawapan){
+        hasil.innerHTML = "✔ <b>BETUL!</b> " + m.kuiz.penjelasan;
+        selesai[m.judul] = true; simpanSelesai(); isiPilihan();
+      } else {
+        hasil.innerHTML = "✘ Belum tepat. Cuba lagi! Petunjuk: baca penjelasan misi di atas.";
+      }
+      q.appendChild(hasil);
+    });
+    q.appendChild(btn);
+    kuizBox.appendChild(q);
+  }
+}
+selMisi.addEventListener("change", paparMisi);
+
+PNL.button({label:"✔ Semak misi semasa", onClick:function(){
+  const m = misiTerpilih();
+  if(!m || m.kuiz){ paparMisi(); return; }
+  let ok = false;
+  try{ ok = !!m.semak(G); }catch(e){ ok = false; }
+  const hasil = document.createElement("div");
+  hasil.style.cssText = "margin:6px 0;font:10.5px 'Courier New',monospace;line-height:1.7;";
+  if(ok){
+    selesai[m.judul] = true; simpanSelesai();
+    hasil.innerHTML = "✔ <b>MISI SELESAI!</b> Ganjaran: " + (m.ganjaran || "Jiwa Pengembara") + " 🏆";
+    isiPilihan();
+  } else {
+    hasil.innerHTML = "⏳ Belum cukup lagi — ikut petunjuk di atas. Kau boleh!";
+  }
+  PNL.body.appendChild(hasil);
+  setTimeout(function(){ hasil.remove(); }, 9000);
+}});
+
+// kemas kini ringkas setiap 2 saat (paparan status)
+let pemasa = 0;
+G.updates.push(function(dt){
+  pemasa += dt;
+  if(pemasa > 2){
+    pemasa = 0;
+    const jumlah = MISI.length + senaraiMisi.length;
+    const siap = MISI.concat(senaraiMisi).filter(function(m){ return selesai[m.judul]; }).length;
+    if(infoMisi && !infoMisi.textContent.includes("MISI:")){
+      infoMisi.textContent = "Pilih misi untuk mula pengembaraan matematika.";
+    }
+    const hud = document.getElementById("stat");
+    if(hud && hud.dataset.misi !== String(siap)){
+      hud.dataset.misi = String(siap);
+    }
+  }
+});
+
+isiPilihan();
+})();
+
+</script>
+
+<script>
+/* ==== 90-boot.js ==== */
+/* ============================================================================
+   90-boot.js — ANTARAMUKA MOD, BANTUAN PENUH, & SENTUHAN AKHIR
+   ============================================================================ */
+(function(){
+"use strict";
+const G = window.GAME;
+
+// ============================ BAR MOD (butang terapung) ===================
+const bar = document.createElement("div");
+bar.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:42;"+
+  "display:flex;gap:8px;background:rgba(6,20,28,.82);border:2px solid #ffb000;border-radius:6px;padding:8px 10px;";
+function butangMod(teks, warna, onClick){
+  const b = document.createElement("button");
+  b.textContent = teks;
+  b.style.cssText = "background:#0c3246;color:"+warna+";border:1px solid "+warna+";border-radius:3px;"+
+    "font-family:'Courier New',monospace;font-size:11px;padding:6px 12px;cursor:pointer;letter-spacing:1px;";
+  b.addEventListener("click", onClick);
+  bar.appendChild(b);
+  return b;
+}
+butangMod("🌀 MOD FRAKTAL (F)", "#66e0ff", function(){
+  if(G.fractal){
+    if(G.fractal.getTerbuka()) G.fractal.tutup();
+    else G.fractal.buka();
+  }
+});
+butangMod("🏗 MOD BINA (B)", "#4dff88", function(){
+  const e = new KeyboardEvent("keydown", {code:"KeyB"});
+  window.dispatchEvent(e);
+});
+butangMod("❓ BANTUAN (H)", "#ffb000", function(){ toggleBantuan(); });
+document.body.appendChild(bar);
+
+// ============================ BANTUAN PENUH ==============================
+const bantuan = document.createElement("div");
+bantuan.style.cssText = "position:fixed;inset:0;z-index:70;display:none;overflow-y:auto;"+
+  "background:rgba(4,12,22,.94);padding:40px 20px;";
+bantuan.innerHTML = [
+  "<div style='max-width:860px;margin:0 auto;border:2px solid #ffb000;border-radius:10px;",
+  "background:rgba(8,26,40,.96);padding:34px 40px;font:12.5px 'Courier New',monospace;",
+  "color:#bfeaff;line-height:1.9;letter-spacing:.3px;'>",
+  "<h1 style='color:#ffb000;letter-spacing:3px;margin:0 0 4px;'>165 START — BANTUAN LENGKAP</h1>",
+  "<div style='color:#4dff88;margin-bottom:18px;'>Dunia matematika tanpa batas · pengembaraan untuk semua umur</div>",
+
+  "<h3 style='color:#ffb000;'>🎮 CARA GERAK</h3>",
+  "<table style='width:100%;border-collapse:collapse;'>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>W A S D</td><td>jalan / terbang</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>Tetikus</td><td>lihat sekeliling (klik untuk kunci kursor)</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>Spasi / C</td><td>naik / turun · Shift = lari</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>Tab</td><td>buka / tutup panel parameter</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>F</td><td>mod fraktal (zoom tanpa hujung)</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>B</td><td>mod bina · E = letak objek · X = padam · Q = pusing</td></tr>",
+  "<tr><td style='padding:2px 12px 2px 0;color:#66e0ff;'>1-5 · R</td><td>dimensi hiperkubus · reset kedudukan</td></tr>",
+  "</table>",
+
+  "<h3 style='color:#ffb000;'>🌏 DUNIA DREAMCORE TANPA BATAS</h3>",
+  "Rumput hijau, bukit, rumah, pokok, bunga, kolam dan awan — semua dijana prosedur ",
+  "mengelilingi kau selama-lamanya (tiada 'dinding dunia'). Tukar <b>seed</b> = dunia baru sepenuhnya. ",
+  "Bila kau terbang jauh dari pusat, dunia mula <b>terdistorsi</b> (zona tepi), dan selepas itu masuk ",
+  "<b>zon kosmik</b>: langit retro-gelap, bintang dan formula matematik melayang. Terus terbang — ",
+  "tiada ujung yang akan kau jumpa.<br>",
+
+  "<h3 style='color:#ffb000;'>🌀 FRAKTAL ZOOM TANPA HUJUNG</h3>",
+  "Enjin dalaman guna teknik sebenar rekod dunia: <b>orbit rujukan double-double (±31 digit)</b> + ",
+  "<b>perturbation theory</b>. Itulah sebab zoom sampai 10^30+ betul-betul dikira, bukan animasi. ",
+  "Bila had digit sampai, <b>re-anchor (self-similarity)</b> menyambung perjalanan — fraktal ",
+  "memang tiada ujung: struktur serupa berulang pada semua skala. <b>1000 model matematik</b> ",
+  "sedia dipilih (Mandelbrot, Julia, Kapal Terbakar, Tricorn, Nova, Lambda… × kuasa × varian). ",
+  "Setiap slider = makna sebenar (zoom 10^x, iterasi, bailout, kuasa, c, palet).<br>",
+
+  "<h3 style='color:#ffb000;'>🏗 PEMBINA ASET PARAMETRIK + AI PROSEDUR</h3>",
+  "Bina aset seperti Grasshopper/NURBS: ubah tinggi, lebar, segmen, twist, taper — bentuk berubah ",
+  "langsung sebelum 'dilahirkan' ke dunia. Mesin <b>AI-prosedur</b> pula membaca gambar rujukan kau: ",
+  "mengesan tepi (Sobel), siluet, palet warna, simetri — lalu merakit <b>5 jenis model 3D</b> ",
+  "(relief, siluet, lathe, voxel, puncak). Semua luar talian: ini AI yang menjadi enjin prosedur ",
+  "tulen di dalam game — boleh dipakai sesiapa tanpa API key.<br>",
+
+  "<h3 style='color:#ffb000;'>🌍 DUNIA / SERVER & PLUGIN</h3>",
+  "Simpan dunia tanpa had (localStorage + eksport/import JSON — boleh kongsi dengan rakan). ",
+  "Plugin: <b>JavaScript</b> (daftar formula, bentuk aset, misi, palet warna) atau <b>mana-mana ",
+  "bahasa</b> yang dikompil ke WebAssembly (kontrak: eksport <code>height(x,z) -&gt; f64</code> — ",
+  "C, Rust, Go, Zig semua boleh). Ekosistem yang boleh berkembang sendiri.<br>",
+
+  "<h3 style='color:#ffb000;'>🗺 PENGEMBARAN MATEMATIKA</h3>",
+  "Misi bertingkat Mudah → Pakar + kuiz berpilihan dengan penjelasan (Pythagoras, masalah Basel, ",
+  "tesseract…). Sesuai dari kanak-kanak sampai dewasa — teks penuh di setiap bahagian.<br>",
+
+  "<h3 style='color:#ffb000;'>📚 DIREKTORI RUJUKAN (yang menjadi panduan reka bentuk)</h3>",
+  "<i>Dunia prosedur:</i> No Man's Sky, Space Engine, Minecraft (Cubic Chunks).<br>",
+  "<i>Fraktal dunia sebenar:</i> Marble Marcher (raymarching Mandelbulb), Mandelbulb 3D, Shadertoy, ",
+  "Inigo Quilez (SDF).<br>",
+  "<i>Geometri mustahil:</i> Manifold Garden, Antichamber, Superliminal, HyperRogue, Miegakure.<br>",
+  "<i>Estetika:</i> LSD: Dream Emulator, Yume Nikki, Fatum Betula (dreamcore) · Frutiger Aero ",
+  "(langit biru, rumput, air, permukaan berkilau).<br>",
+  "<i>Matematik interaktif:</i> Desmos, GeoGebra 3D, Calcflow, MathBox.<br>",
+  "<i>Bina & parametrik:</i> Dreams (Media Molecule), Roblox Studio, Garry's Mod Wiremod, Teardown, ",
+  "Grasshopper/Rhino, OpenSCAD, Blender Geometry Nodes.<br>",
+  "<i>Deep zoom teknikal:</i> Hart 1989 (Ray Tracing Deterministic 3-D Fractals), Sphere Tracing, ",
+  "perturbation theory + double-double (Kalles Fraktaler), Mandelbrot deep zoom world record.<br>",
+  "<i>Skala & rasa zoom:</i> Scale of Universe, Powers of Ten (Eames 1977).<br>",
+  "<i>Plugin mana-mana bahasa:</i> sandbox WASM (WebAssembly).<br>",
+
+  "<h3 style='color:#ffb000;'>💾 PASANG & GUNA</h3>",
+  "Windows: klik dua kali <b>165START.exe</b> (portable, tanpa install, tanpa internet). ",
+  "Atau buka <b>index.html</b> dengan Chrome/Edge (double-klik sahaja). ",
+  "Semua fail dalam satu folder — 1 fail game tunggal + enjin 3D. Ringan (< 3 MB).<br>",
+
+  "<div style='margin-top:22px;text-align:center;'>",
+  "<button id='tutupBantuan' style='background:#0c3246;color:#ffb000;border:1px solid #ffb000;",
+  "border-radius:4px;font-family:inherit;font-size:12px;padding:10px 26px;cursor:pointer;letter-spacing:2px;'>",
+  "TUTUP (H)</button></div>",
+  "</div>"
+].join("");
+document.body.appendChild(bantuan);
+document.getElementById("tutupBantuan").addEventListener("click", toggleBantuan);
+function toggleBantuan(){
+  bantuan.style.display = bantuan.style.display === "block" ? "none" : "block";
+}
+window.addEventListener("keydown", function(e){
+  if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) return;
+  if(e.code === "KeyF" && G.fractal && !G.fractal.getTerbuka()){
+    G.fractal.buka();
+    return;
+  }
+  if(e.code === "KeyH" && !(G.fractal && G.fractal.getTerbuka())){
+    toggleBantuan();
+  }
+});
+
+// ============================ SKRIN SELAMAT DATANG ========================
+const welcome = document.getElementById("welcome");
+if(welcome){
+  const kotak = welcome.querySelector(".box");
+  if(kotak){
+    kotak.innerHTML = [
+      "<h1 style='color:#ffb000;letter-spacing:3px;margin:0 0 8px;font-size:28px;'>165 START</h1>",
+      "<p style='color:#bfeaff;line-height:1.85;font-size:13px;'>",
+      "Dunia <b>dreamcore tanpa batas</b> yang bisa kamu ubah apa saja.<br>",
+      "Rumah, awan, rumput, kolam — semua lahir dari persamaan matematika.<br>",
+      "Zoom <b>fraktal tanpa hujung</b> · bina aset parametrik · AI prosedur dari gambar · ",
+      "plugin · misi pengembaraan untuk semua umur.</p>",
+      "<div style='margin-top:16px;font-size:12px;color:#4dff88;letter-spacing:2px;",
+      "border:1px dashed #4dff88;border-radius:4px;padding:10px 16px;display:inline-block;'>",
+      "▶ KLIK DI SINI UNTUK MASUK</div>",
+      "<p style='font-size:11px;opacity:.85;color:#9fd8ff;'>",
+      "<b>WASD</b> gerak · <b>F</b> fraktal · <b>B</b> bina · <b>Tab</b> panel · <b>H</b> bantuan penuh</p>"
+    ].join("");
+    welcome.addEventListener("click", function(){
+      welcome.style.display = "none";
+      G.renderer.domElement.requestPointerLock();
+    }, {once:true});
+  }
+}
+
+// ============================ HUD TAMBAHAN ================================
+const hud = document.getElementById("hud");
+if(hud){
+  const kiri = hud.querySelector("div");
+  if(kiri){
+    kiri.innerHTML = "<b>[WASD]</b> gerak &nbsp; <b>[F]</b> fraktal &nbsp; <b>[B]</b> bina &nbsp; "+
+      "<b>[TAB]</b> panel &nbsp; <b>[H]</b> bantuan &nbsp; <b>[R]</b> reset";
+  }
+}
+})();
+
 </script>
 </body>
 </html>

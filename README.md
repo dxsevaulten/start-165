@@ -1,8 +1,7 @@
-# 165 START 🎲
+# 165 START 🎲 — Dunia Matematika Tanpa Batas
 
-**Sandbox matematika 3D — dari 1D sampai 5D.**
-Sebuah dunia kecil yang bisa kamu ubah apa saja lewat panel parameter:
-bentuk lahir dari persamaan, dan persamaannya bisa kamu sentuh langsung.
+**Sandbox matematika 3D — dari 1D sampai 5D, dari dunia dreamcore sampai fraktal tanpa hujung.**
+Semua yang kau nampak lahir dari persamaan — dan setiap persamaan boleh kau sentuh.
 
 > *"Dalam kehidupan nyata, apapun adalah bentuk matematika."*
 
@@ -10,82 +9,73 @@ bentuk lahir dari persamaan, dan persamaannya bisa kamu sentuh langsung.
 
 ---
 
-## Cara main (paling gampang)
+## 🎮 Cara main (paling gampang)
 
-**Windows:** klik dua kali `165START.exe` → game terbuka di jendelanya sendiri.
-(Tanpa install apa pun. Tanpa internet.)
+| Cara | Langkah |
+|---|---|
+| **Windows** | Klik dua kali `165START.exe` → main. (Portable — tanpa install, tanpa internet.) |
+| **Semua OS** | Klik dua kali `index.html` → terbuka di Chrome/Edge/Firefox. |
 
-**Cara manual / Linux/Mac:** klik dua kali `index.html` — atau klik kanan → *Open with* → Chrome/Edge.
+Itu sahaja. Fail game hanya **satu fail tunggal** (`index.html`, ± 180 KB) + enjin 3D (`three.min.js`, ± 590 KB). Muat turun, ekstrak, main. Sesuai untuk semua umur — ada teks penuh di setiap bahagian.
 
-## Tombol
+## 🌏 Apa yang ada dalam game
+
+1. **Dunia dreamcore tanpa batas** — rumput hijau, bukit, rumah, pokok, bunga, kolam, awan. Dijana prosedur selama-lamanya di sekeliling kau. Tekan *Dunia baru (rawak seed)* = dunia lain sepenuhnya. Jauh dari pusat, dunia mula **terdistorsi** (zona tepi) → terus jadi **zon kosmik** (langit retro-gelap, bintang, formula melayang). Tiada dinding — terus terbang, tiada ujung.
+2. **Fraktal zoom tanpa hujung** — enjin dalaman: orbit rujukan **double-double (±31 digit) + perturbation theory** (teknik sebenar rekod dunia Mandelbrot zoom). **1000 model matematik** (Mandelbrot, Julia, Kapal Terbakar, Tricorn, Nova, Lambda… × kuasa × varian). Slider = makna sebenar (zoom 10^x, iterasi, bailout, kuasa p, c, palet warna). Bila had digit sampai: **re-anchor self-similarity** — perjalanan diteruskan (jumlah kedalaman terus menaik).
+3. **Pembina aset parametrik (NURBS-style)** — ubah tinggi, lebar, segmen, twist, taper, ketebalan → bentuk berubah langsung sebelum dilahirkan ke dunia. 12 jenis aset: vas lathe, menara, roda gigi, tangga berpusing, simpul torus…
+4. **Mesin AI-prosedur: gambar → 3D** — muat naik gambar rujukan (atau guna contoh). Mesin menganalisis piksel (Sobel, siluet, palet, simetri) lalu merakit **5 jenis model 3D** (relief, siluet ekstrusi, lathe, voxel, puncak). 100% luar talian — AI yang menjadi enjin prosedur tulen, tanpa API key.
+5. **Dunia/server tanpa had + plugin** — simpan/muat dunia, eksport/import JSON (kongsi dengan rakan). Plugin **JavaScript** (daftar formula, bentuk, misi, palet) atau **mana-mana bahasa** yang dikompil ke **WebAssembly** (kontrak: `height(x,z) -> f64`).
+6. **Pengembaraan matematika** — misi bertingkat Mudah → Pakar + kuiz dengan penjelasan (Pythagoras, masalah Basel Euler, tesseract…). Sesuai kanak-kanak sampai dewasa.
+7. **Galeri 115 bentuk matematika + 50 tokoh** + hiperkubus 1D–5D + Spons Menger (warisan v0.1–v0.5, kekal ada).
+
+## 🕹 Tombol
 
 | Tombol | Fungsi |
 |---|---|
 | `W A S D` | Jalan / terbang bebas |
 | `Mouse` | Lihat sekeliling |
-| `Spasi` / `C` | Naik / turun |
-| `Shift` | Lari (lebih cepat) |
+| `Spasi` / `C` | Naik / turun · `Shift` = lari |
 | `Tab` | Buka / tutup panel parameter |
-| `1`–`5` | Ganti dimensi hiperkubus (1D…5D) |
-| `R` | Kembali ke posisi awal |
+| `F` | Mod fraktal (zoom tanpa hujung) |
+| `B` | Mod bina · `E` letak · `X` padam · `Q` pusing · `Z`/`N` skala |
+| `H` | Bantuan penuh (dalam game) |
+| `1`–`5` | Dimensi hiperkubus · `R` = reset kedudukan |
 
-## Yang bisa kamu ubah (panel kiri)
+Dalam mod fraktal: **tatal tetikus** = zoom ke kursor, **seret** = gerak, **klik dua kali** = zoom 2×, `A` = auto-teroka.
 
-- **Dunia** — kecepatan jalan, jarak kabut.
-- **Objek matematika** — pilih dari **115 rumus**! Dasar (Torus, Bola, Gelombang), fraktal (Mandelbrot, Julia, Burning Ship, Newton, Sierpinski, Spons Menger), eksotis (Mobius, Superelipsoid, Mawar), **Galeri 50 Tokoh Matematika** (Thales → Wiles, tiap tokoh jadi bentuk 3D dari penemuannya), lalu **50 Bentuk A1–A50**: kardioid, lemniskat, astroid, sikloid, simpul torus, Pita Klein, interferensi, difraksi, pegunungan fraktal, ombak laut, sarang lebah, roda gigi, medan magnet, corong lubang hitam, dan banyak lagi. Lalu atur **ukuran, tebal, frekuensi, amplitudo, twist, detail mesh, iterasi fraktal, eksponen bentuk, tingkat logam, kekasaran, wireframe, flat shading**.
-- **Spons Menger** — fraktal 3D: atur level rekursi (0–3, level 3 = 8.000 kubus) dan ukurannya.
-- **Hiperkubus 1D → 5D** — dimensi, ukuran, kecepatan rotasi, jarak proyeksi 4D.
-- **Tampilan** — cahaya matahari, paparan cahaya.
-
-Semua angka di panel itu **parameter matematika yang sesungguhnya** — mengubahnya mengubah persamaan, dan persamaan mengubah wujud bendanya. Di rumus *Julia*, memutar slider **twist** = memutar konstanta c → setiap sudut menghasilkan fraktal yang berbeda.
-
-## Isi folder
-
-## Isi repo ini
+## 📁 Isi repo
 
 ```
-index.html              → seluruh game (klik dua kali juga bisa langsung main!)
-three.min.js            → mesin 3D (ringan, offline)
-preview.png             → tampilan game
-README.md               → file ini (otomatis jadi halaman depan repo)
-CARA-UPLOAD-GITHUB.md   → panduan upload & FAQ
-push-ke-github.bat      → alat bantu push (opsional)
-rilis/
-  └─ 165START-win64-v0.6.zip → paket Windows lengkap (siap unduh, exe mandiri)
+index.html              → SELURUH game dalam satu fail (double-klik = main!)
+three.min.js            → enjin 3D (ringan, luar talian)
+165START.exe            → pemutar Windows portable (fail game tertanam di dalamnya)
+preview.png             → tangkapan skrin
+README.md               → fail ini
+BACA-DULU.txt           → panduan 30 saat
+CARA-UPLOAD-GITHUB.md   → panduan GitHub & FAQ
+src/                    → kod modular (untuk yang nak ubah suai)
+  head.html · 10-core.js · 20-world.js · 30-fractal.js
+  40-assetgen.js · 50-ugc.js · 60-adventure.js · 90-boot.js
+build.py                → python3 build.py  → himpun src/ jadi index.html
 ```
 
-Game-nya sendiri hanya ± 1 MB (sangat ringan). Paket Windows di `rilis/` (± 0,5 MB) berisi aplikasi pemutar `165START.exe` + file game + `BACA-DULU.txt`.
+## 🔧 Untuk yang suka ngoprek
 
-## Cara install (dari ZIP) — 3 langkah, tanpa installer
+- Semua kod modular dalam `src/`. Ubah → jalankan `python3 build.py` → `index.html` terbina semula.
+- Cari tulisan **`PARAM`** untuk mula ubah angka.
+- **Buat plugin**: dalam game, panel «Plugin» → tampal kod JavaScript (API: `api.registerFormula / registerAssetType / registerMission / registerPalette`) atau muat fail `.wasm` (eksport `height(x,z)`).
 
-1. **Unduh** `rilis/165START-win64-v0.6.zip` (klik file → tombol **Download**).
-2. **Ekstrak**: klik kanan file zip → **Extract All** → Extract.
-3. **Main**: klik dua kali **`165START.exe`**.
+## 📚 Rujukan reka bentuk (dipaparkan juga dalam menu Bantuan)
 
-Selesai. Tidak ada proses install beneran — game ini *portable*, tinggal pakai.
+No Man's Sky · Space Engine · Marble Marcher · Shadertoy/Inigo Quilez · Manifold Garden · LSD: Dream Emulator · Yume Nikki · Frutiger Aero · Desmos · GeoGebra 3D · Dreams (Media Molecule) · Roblox Studio · Grasshopper/Rhino · OpenSCAD · Blender Geometry Nodes · Hart 1989 (Ray Tracing Deterministic 3-D Fractals) · Sphere Tracing · perturbation theory + double-double (Kalles Fraktaler) · Scale of Universe · Powers of Ten · sandbox WebAssembly.
 
-✅ **`165START.exe` sudah mandiri**: file game tertanam di dalamnya, jadi exe boleh dipindah ke mana pun (bahkan jalan tanpa file lain). Kalau file `index.html` ada di sebelah exe, file itulah yang dipakai — jadi hasil edit-mu tetap berlaku.
+## 🗺 Peta jalan
 
-💡 Bonus: klik kanan `165START.exe` → **Send to** → **Desktop (create shortcut)** supaya gampang dibuka lagi.
-
-💡 Tidak punya Windows? Klik dua kali `index.html` di browser mana pun — jalan juga.
-
-## Untuk yang suka ngoprek
-
-Semua kode ada di `index.html`. Cari tulisan **`PARAM`** untuk mulai mengubah:
-ganti angka, simpan file, refresh browser. Tidak perlu compile apa pun.
-
-## Peta jalan (roadmap)
-
-- **v0.1** — dunia 3D, gerak bebas, panel parameter, hiperkubus 1D–5D, efek CRT retro, latar aero. ✅
-- **v0.2** — fraktal: Mandelbrot, Julia, Spons Menger, plus Mobius, Superelipsoid, Fibonacci; aplikasi Windows (`165START.exe` 36 KB). ✅
-- **v0.3** — tambah Burning Ship, Newton, Sierpinski, Mawar; aplikasi Windows 36 KB. ✅
-- **v0.4** — **Galeri 50 Tokoh Matematika** (Thales → Wiles), tiap tokoh jadi bentuk 3D dari penemuannya. ✅
-- **v0.5 (sekarang)** — **50 Bentuk Tambahan A1–A50** (geometri klasik, gelombang, fraktal alam, mekanik, benda sehari-hari) → **115 rumus total**. ✅
-- **v0.6** — simpan & muat kreasi (JSON), medan vektor, permukaan minimal.
-- **v0.7** — objek yang saling berinteraksi (gravitasi, tumbukan sederhana).
-- **v1.0** — mode edukasi: tantangan matematika, penjelasan rumus di dalam game, mode multiplayer sederhana.
+- **v0.1–v0.5** — dunia 3D, 115 rumus, galeri 50 tokoh, hiperkubus 1D–5D, Menger. ✅
+- **v0.6** — simpan/muat kreasi (JSON). ✅
+- **v0.7 (sekarang)** — dunia dreamcore tanpa batas + zona tepi/kosmik · fraktal deep-zoom (perturbation + dd) + 1000 model · pembina aset parametrik · mesin AI-prosedur gambar→3D · dunia/server + plugin JS/WASM · fizik mudah · pengembaraan matematika + kuiz. ✅
+- **v0.8** — multiplayer sederhana · lebih banyak keluarga fraktal (Mandelbulb 3D raymarching ala Marble Marcher) · eksport video zoom.
 
 ---
 
-Dibuat dengan semangat: *matematika itu nyata, bisa dipegang, dan bisa dimainkan.*
+Dibuat dengan semangat: *matematika itu nyata, bisa dipegang, dan bisa dimainkan.* 🌌

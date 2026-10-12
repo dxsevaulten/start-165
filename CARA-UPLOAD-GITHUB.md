@@ -21,9 +21,9 @@ Itu **normal dan justru bagus** — README memang sengaja dibuat duluan supaya r
 Selesai. Commit baru akan menumpuk rapi di atas commit README tadi.
 
 **Q: File apa saja yang di-upload?**
-Supaya GitHub **menampilkan isinya langsung** (bukan cuma zip), upload **file mentahnya**: `index.html`, `three.min.js`, `preview.png`, `README.md`, `CARA-UPLOAD-GITHUB.md`, `push-ke-github.bat`, **plus** satu folder `rilis/` yang berisi `165START-win64-v0.6.zip`.
+Supaya GitHub **menampilkan isinya langsung** (bukan cuma zip), upload **file mentahnya**: `index.html`, `three.min.js`, `165START.exe`, `preview.png`, `README.md`, `BACA-DULU.txt`, `CARA-UPLOAD-GITHUB.md`, `build.py`, serta folder `src/` (kod modular untuk yang nak ubah suai).
 
-Hasilnya: halaman repo langsung menampilkan kode game, gambar preview, dan README — sedangkan zip tetap tersedia untuk diunduh.
+Hasilnya: halaman repo langsung menampilkan kode game, gambar preview, dan README — sesiapa pun boleh terus main `index.html` dari GitHub (Download raw), dan zip release tetap tersedia untuk diunduh.
 
 💡 **Cara upload folder `rilis/` lewat web:** saat di halaman Upload files, **seret folder `rilis` itu langsung** (drag folder, bukan isinya) — GitHub otomatis membuat foldernya. Atau buat dulu tombol "Create new file" → ketik `rilis/` lalu simpan apa pun, lalu upload zip ke dalam folder itu.
 

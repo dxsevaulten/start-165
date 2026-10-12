@@ -3,41 +3,45 @@
 ========================================
 
 CARA MAIN:
-  Klik dua kali "165START.exe"
-  → game terbuka di jendelanya sendiri.
-
-  ✅ EXE INI SUDAH MANDIRI — file game sudah
-  tertanam di dalamnya. Boleh dipindah ke mana
-  pun, bahkan dieksekusi sendirian, pasti jalan.
-
+  Windows: klik dua kali "165START.exe"
+  Semua OS: klik dua kali "index.html"
+  → game terbuka di pelayar. Selesai!
   Tidak perlu install apa pun. Tidak perlu internet.
 
-TOMBOL:
+  ✅ EXE INI PORTABLE — boleh dipindah ke mana
+  pun, bahkan jalan sendirian.
+
+TOMBOL PENTING:
   W A S D ....... jalan / terbang
   Mouse ......... lihat sekeliling
-  Spasi / C ..... naik / turun
-  Shift ......... lari
+  Spasi / C ..... naik / turun · Shift = lari
   Tab ........... buka/tutup panel parameter
+  F ............. MOD FRAKTAL (zoom tanpa hujung)
+  B ............. MOD BINA (E letak · X padam · Q pusing)
+  H ............. bantuan penuh
   1 - 5 ......... ganti dimensi (1D sampai 5D)
   R ............. kembali ke posisi awal
 
-PANEL KIRI:
-  115 bentuk matematika bisa kamu ubah
-  parameternya: rumus, ukuran, frekuensi,
-  iterasi fraktal, dan lainnya.
+APA YANG BOLEH KAU BUAT:
+  * Dunia dreamcore tanpa batas: rumah, awan, rumput,
+    kolam, tanaman — semua dijana matematik.
+    Jauh dari pusat → dunia terdistorsi → zon kosmik!
+  * Zoom fraktal sampai 10^30+ (enjin perturbation +
+    aritmetik 31 digit — bukan animasi, betul dikira).
+    1000 model matematik sedia dipilih.
+  * Bina aset parametrik (vas, menara, roda gigi…)
+    dengan slider — ubah param, bentuk berubah.
+  * Mesin AI prosedur: bagi gambar → dapat model 3D.
+  * Simpan dunia tanpa had + eksport JSON.
+  * Plugin JavaScript / WebAssembly.
+  * Misi pengembaraan matematika + kuiz (semua umur).
 
 CATATAN:
-  * Kalau file index.html & three.min.js ada di
-    sebelah exe, file ITU yang dipakai
-    (jadi hasil edit-mu ikut jalan).
-    Kalau tidak ada, exe memakai salinan
-    bawaan di dalamnya.
-  * Kalau Windows memberi peringatan
-    "Windows protected your PC":
+  * Kalau file index.html ada di sebelah exe,
+    file ITU yang dipakai (hasil edit-mu ikut jalan).
+  * Kalau Windows kata "Windows protected your PC":
     klik "More info" → "Run anyway".
-    (Aplikasi baru memang sering ditandai begitu.)
-  * Game butuh browser (Edge/Chrome) untuk
-    menampilkan grafis 3D. Windows 10/11 sudah
-    punya Edge sejak awal.
+  * Game butuh pelayar (Edge/Chrome/Firefox) untuk
+    grafik 3D. Windows 10/11 sudah ada Edge sejak awal.
 
 Selamat bermain. Matematika itu nyata. :-)

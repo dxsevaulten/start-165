@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>165 START — Sandbox Matematika 1D sampai 5D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --amber:#ffb000; --green:#4dff88; --cyan:#66e0ff; --panelbg:rgba(6,20,28,.82);
+  }
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#04121c;
+    font-family:"Courier New",Consolas,monospace;color:var(--green);}
+  canvas{display:block;}
+  /* ===== efek CRT retro 1970-an ===== */
+  #crt{position:fixed;inset:0;pointer-events:none;z-index:40;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0px, rgba(0,0,0,.16) 1px, rgba(255,255,255,0) 2px, rgba(255,255,255,0) 4px),
+      radial-gradient(ellipse at center, rgba(255,255,255,0) 55%, rgba(0,10,20,.55) 100%);
+    mix-blend-mode:multiply;}
+  #flicker{position:fixed;inset:0;pointer-events:none;z-index:41;background:rgba(120,220,255,.03);
+    animation:flick 4.2s steps(60) infinite;}
+  @keyframes flick{0%,100%{opacity:.25}22%{opacity:.10}47%{opacity:.32}73%{opacity:.12}}
+  /* ===== panel parameter ===== */
+  #panel{position:fixed;top:14px;left:14px;width:322px;max-height:calc(100% - 110px);
+    overflow-y:auto;background:var(--panelbg);border:2px solid var(--amber);
+    border-radius:6px;box-shadow:0 0 22px rgba(0,0,0,.6), inset 0 0 30px rgba(255,176,0,.06);
+    padding:12px 14px 16px;z-index:30;}
+  #panel.hidden{display:none}
+  #panel h1{font-size:15px;margin:0 0 2px;color:var(--amber);letter-spacing:1px;}
+  #panel .sub{font-size:10px;color:#9fd8ff;margin-bottom:10px;letter-spacing:.5px;}
+  .grp{border-top:1px dashed rgba(255,176,0,.45);margin:12px 0 6px;padding-top:8px;
+    font-size:11px;color:var(--amber);letter-spacing:1.5px;}
+  .row{margin:7px 0;}
+  .row label{display:flex;justify-content:space-between;font-size:10.5px;color:var(--green);margin-bottom:2px;}
+  .row label b{color:var(--cyan);font-weight:normal;}
+  .row input[type=range]{width:100%;height:16px;-webkit-appearance:none;appearance:none;background:transparent;}
+  .row input[type=range]::-webkit-slider-runnable-track{height:5px;background:#0c3246;border:1px solid #2b6f8e;border-radius:3px;}
+  .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-6px;
+    background:var(--amber);border:1px solid #fff2c8;border-radius:2px;cursor:pointer;}
+  .row input[type=range]::-moz-range-track{height:5px;background:#0c3246;border:1px solid #2b6f8e;border-radius:3px;}
+  .row input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--amber);border:1px solid #fff2c8;border-radius:2px;cursor:pointer;}
+  .row select{width:100%;background:#0c3246;color:var(--cyan);border:1px solid #2b6f8e;border-radius:3px;
+    font-family:inherit;font-size:11px;padding:3px 4px;}
+  .row.chk{display:flex;align-items:center;gap:8px;font-size:11px;}
+  button.mini{background:#0c3246;color:var(--amber);border:1px solid var(--amber);border-radius:3px;
+    font-family:inherit;font-size:10.5px;padding:4px 8px;cursor:pointer;letter-spacing:.5px;}
+  button.mini:hover{background:var(--amber);color:#04121c;}
+  /* ===== HUD ===== */
+  #hud{position:fixed;left:0;right:0;bottom:0;z-index:35;padding:8px 16px;
+    background:linear-gradient(0deg, rgba(4,18,28,.88), rgba(4,18,28,0));
+    font-size:11px;color:var(--cyan);letter-spacing:1px;display:flex;justify-content:space-between;gap:14px;}
+  #hud b{color:var(--amber);font-weight:normal;}
+  #cross{position:fixed;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;z-index:36;
+    pointer-events:none;opacity:.75;}
+  #cross::before,#cross::after{content:"";position:absolute;background:var(--amber);}
+  #cross::before{left:7px;top:0;width:2px;height:16px;}
+  #cross::after{top:7px;left:0;height:2px;width:16px;}
+  #welcome{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,18,28,.86);cursor:pointer;}
+  #welcome .box{max-width:560px;text-align:center;border:2px solid var(--amber);border-radius:8px;
+    padding:34px 38px;background:rgba(6,26,38,.92);box-shadow:0 0 50px rgba(255,176,0,.25);}
+  #welcome h1{color:var(--amber);letter-spacing:3px;margin:0 0 6px;font-size:26px;}
+  #welcome p{color:#bfeaff;line-height:1.75;font-size:13px;}
+  #welcome .go{margin-top:18px;font-size:12px;color:var(--green);letter-spacing:2px;
+    border:1px dashed var(--green);border-radius:4px;padding:9px 16px;display:inline-block;}
+  ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#2b6f8e;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="welcome">
+  <div class="box">
+    <h1>165 START</h1>
+    <p>Dunia matematika yang bisa kamu ubah apa saja.<br>
+    Dari garis <b>1D</b>, bidang <b>2D</b>, ruang <b>3D</b>, sampai <b>4D &amp; 5D</b>.<br>
+    Berjalanlah bebas — di sini semua benda adalah matematika.</p>
+    <div class="go">▶ KLIK DI SINI UNTUK MASUK</div>
+    <p style="font-size:11px;opacity:.8">Gerak: <b>W A S D</b> &nbsp;|&nbsp; Naik/Turun: <b>Spasi / C</b> &nbsp;|&nbsp; Lihat: <b>Mouse</b> &nbsp;|&nbsp; Panel: <b>Tab</b></p>
+  </div>
+</div>
+
+<div id="panel">
+  <h1>▣ 165 START</h1>
+  <div class="sub">SANDBOX MATEMATIKA · v0.2 · retro 1970</div>
+  <div id="panelBody"></div>
+</div>
+
+<div id="cross"></div>
+<div id="errbox" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99;background:#b00020;color:#fff;font:12px monospace;padding:8px 12px;"></div>
+<script>
+window.onerror = function(msg, src, line){
+  var e = document.getElementById('errbox');
+  e.style.display = 'block';
+  e.textContent = 'ERROR: ' + msg + ' (baris ' + line + ')';
+  return false;
+};
+</script>
+<div id="crt"></div>
+<div id="flicker"></div>
+<div id="hud">
+  <div><b>[WASD]</b> gerak &nbsp; <b>[SPASI/C]</b> naik/turun &nbsp; <b>[SHIFT]</b> lari &nbsp; <b>[TAB]</b> panel &nbsp; <b>[1-5]</b> dimensi &nbsp; <b>[R]</b> reset</div>
+  <div id="stat">FPS -- · dim 3</div>
+</div>
+
