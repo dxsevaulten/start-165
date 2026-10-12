@@ -245,7 +245,7 @@ const tutupBtn = buatButton("✕ Tutup (F) — kembali ke dunia", function(){ tu
 tutupBtn.style.borderColor = "#4dff88"; tutupBtn.style.color = "#4dff88";
 
 // ============================ RENDERER FRAKTAL ============================
-let rosak = true, barisBerikutnya = 0, autoZoom = false, fasaWarna = 0;
+let rosak = true, barisBerikutnya = 0, autoZoom = false, fasaWarna = 0, kitaranWarnaT = 0;
 let imej = null, imejW = 0, imejH = 0;
 let statusKetepatan = "float64 standard";
 let terakhirWaktu = 0;
@@ -502,10 +502,11 @@ function geser(dx, dy){
   CEN.r = ddAdd(CEN.r[0], CEN.r[1], ox, 0);
   CEN.i = ddAdd(CEN.i[0], CEN.i[1], oy, 0);
 }
-canvas.addEventListener("wheel", function(e){
+wrap.addEventListener("wheel", function(e){
   e.preventDefault();
   if(!buka) return;
-  const f = Math.pow(1.18, -Math.sign(e.deltaY)*Math.min(3, Math.abs(e.deltaY)/80 + 0.6));
+  // tatal ke atas (deltaY negatif) = zoom MASUK
+  const f = Math.pow(1.18, Math.sign(e.deltaY)*Math.min(3, Math.abs(e.deltaY)/80 + 0.6));
   zoomKe(e.clientX, e.clientY, f);
 }, {passive:false});
 function zoomKe(px, py, f){
@@ -581,7 +582,15 @@ G.updates.push(function(dt, t){
     // zoom perlahan ke arah pusat — sentiasa ke dalam
     zoomKe(window.innerWidth/2, window.innerHeight/2, 0.985);
   }
-  if(F.warnaAuto){ fasaWarna += dt*0.05*F.kelajuanWarna; rosak = true; }
+  if(F.warnaAuto){
+    // kitaran warna: fasa bergerak selalu, tapi render semula hanya berkala
+    // (kalau restart setiap frame, hanya jalur atas sempat terlukis)
+    fasaWarna += dt*0.05*F.kelajuanWarna;
+    kitaranWarnaT += dt;
+    if(kitaranWarnaT > 3.5 && barisBerikutnya >= imejH){
+      kitaranWarnaT = 0; rosak = true;
+    }
+  }
   if(!imej) resizeCanvas();
   if(rosak){
     rosak = false; barisBerikutnya = 0;

@@ -59,12 +59,12 @@ G.dunia = W;   // dedahkan parameter dunia untuk misi & modul lain
 function grassTexture(){
   const c=document.createElement("canvas"); c.width=c.height=256;
   const g=c.getContext("2d");
-  g.fillStyle="#4fae4c"; g.fillRect(0,0,256,256);
+  g.fillStyle="#52c24a"; g.fillRect(0,0,256,256);
   // lorek rumput + bintik warna (dreamcore berwarna-warni)
   for(let i=0;i<2200;i++){
     const x=Math.random()*256, y=Math.random()*256;
     const t=Math.random();
-    g.fillStyle = t<0.72 ? "rgba(30,110,40,0.5)" : (t<0.92 ? "rgba(150,230,120,0.5)" : "rgba(255,255,190,0.55)");
+    g.fillStyle = t<0.72 ? "rgba(20,140,40,0.55)" : (t<0.92 ? "rgba(170,255,130,0.55)" : "rgba(255,255,190,0.6)");
     g.fillRect(x, y, 1.6, 1.6);
   }
   for(let i=0;i<26;i++){ // bunga liar kecil dalam tekstur
@@ -145,8 +145,8 @@ const GEO = {
 
 // ============================ WARNA BENUA (kawasan berwarna-warni) =========
 const benua = [
-  new THREE.Color(0x4fae4c), new THREE.Color(0x63c86a), new THREE.Color(0x3fae7c),
-  new THREE.Color(0x7cc242), new THREE.Color(0x2e9e6e), new THREE.Color(0x8fc93d)
+  new THREE.Color(0x55c24e), new THREE.Color(0x6fdc6e), new THREE.Color(0x3fc28a),
+  new THREE.Color(0x8ad247), new THREE.Color(0x2eb27c), new THREE.Color(0x9fd63f)
 ];
 function warnaBenua(x, z){
   const ix=Math.floor(x/420), iz=Math.floor(z/420);
@@ -393,7 +393,7 @@ const rumusMelayang = [];
 
 // ============================ ZON: biasa → tepi → kosmik ==================
 const PAL = {
-  siang:  {top:new THREE.Color(0x1a5fc8), mid:new THREE.Color(0x9fd8ff), bot:new THREE.Color(0xeaf9ff), fog:new THREE.Color(0xbfe6ff)},
+  siang:  {top:new THREE.Color(0x1264d8), mid:new THREE.Color(0x8fd4ff), bot:new THREE.Color(0xf2fcff), fog:new THREE.Color(0xc4ecff)},
   senja:  {top:new THREE.Color(0x2b1a5e), mid:new THREE.Color(0xff8c42), bot:new THREE.Color(0xffd9a0), fog:new THREE.Color(0xe8b48f)},
   malam:  {top:new THREE.Color(0x040a20), mid:new THREE.Color(0x12244d), bot:new THREE.Color(0x1a3566), fog:new THREE.Color(0x12203f)},
   kosmik: {top:new THREE.Color(0x07031a), mid:new THREE.Color(0x180b3d), bot:new THREE.Color(0x2a1155), fog:new THREE.Color(0x150a30)}
